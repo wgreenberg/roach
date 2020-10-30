@@ -8,23 +8,23 @@ pub struct Hex {
 pub const ORIGIN: Hex = Hex { x: 0, y: 0, z: 0 };
 
 impl Hex {
-    fn new(x: i64, y: i64, z: i64) -> Hex {
+    pub fn new(x: i64, y: i64, z: i64) -> Hex {
         assert_eq!(x + y + z, 0);
         Hex { x, y, z }
     }
 
-    fn add(&self, other: Hex) -> Hex {
+    pub fn add(&self, other: Hex) -> Hex {
         Hex { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
     }
 
-    fn dist(&self, other: Hex) -> i64 {
+    pub fn dist(&self, other: Hex) -> i64 {
         let dx = (self.x - other.x).abs();
         let dy = (self.y - other.y).abs();
         let dz = (self.z - other.z).abs();
         (dx + dy + dz) / 2
     }
 
-    fn neighbors(&self) -> Vec<Hex> {
+    pub fn neighbors(&self) -> Vec<Hex> {
         vec![
             self.add(Hex::new(1, -1, 0)),
             self.add(Hex::new(1, 0, -1)),
