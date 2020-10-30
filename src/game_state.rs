@@ -139,11 +139,12 @@ mod test {
     #[test]
     fn test_first_valid_moves() {
         let new_game = GameState::new();
-        let all_but_queen = new_game.unplayed_pieces.iter()
-            .filter(|p| {
-                p.bug != Queen && p.owner == White && p.id == 1
-            }).map(|&p| Turn::Place(p, ORIGIN))
-            .collect();
+        let all_but_queen = vec![
+            Turn::Place(Piece::new(Ant, White), ORIGIN),
+            Turn::Place(Piece::new(Beetle, White), ORIGIN),
+            Turn::Place(Piece::new(Grasshopper, White), ORIGIN),
+            Turn::Place(Piece::new(Spider, White), ORIGIN),
+        ];
         assert_set_equality(new_game.get_valid_moves(), all_but_queen);
     }
 
@@ -165,9 +166,16 @@ mod test {
         let mut game = GameState::new();
         let white_ant_1 = Piece::new(Ant, White);
         let turn_1 = Turn::Place(white_ant_1, ORIGIN);
-        game.submit_turn(turn_1);
+        assert!(game.submit_turn(turn_1).is_ok());
         // 6 possible hexes * 4 possible pieces = 24 possible moves for Black
         assert_eq!(game.get_valid_moves().len(), 24);
+        let black_spider_1 = Piece::new(Spider, Black);
+        let west_of_origin = ORIGIN.add(Hex::new(-1, 1, 0));
+        let turn_2 = Turn::Place(black_spider_1, west_of_origin);
+        assert!(game.submit_turn(turn_2).is_ok());
+        assert_eq!(game.board.get(&ORIGIN), Some(&white_ant_1));
+        assert_eq!(game.board.get(&west_of_origin), Some(&black_spider_1));
+        assert_eq!(game.unplayed_pieces.len(), get_initial_pieces().len() - 2);
     }
 
     #[test]
