@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::iter::FromIterator;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Hex {
     pub x: i64,
@@ -34,12 +37,21 @@ impl Hex {
             self.add(Hex::new(0, -1, 1)),
         ]
     }
+
+    // Given a collection of hexes, return the list of unique unoccupied
+    // neighboring hexes
+    pub fn get_all_neighbors(hexes: Vec<Hex>) -> Vec<Hex> {
+        let neighbors = hexes.iter()
+            .flat_map(|hex| hex.neighbors());
+        let set: HashSet<Hex> = HashSet::from_iter(neighbors);
+        let hexes_set = HashSet::from_iter(hexes.iter().cloned());
+        set.difference(&hexes_set).cloned().collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
     use std::hash::Hash;
     use std::fmt::Debug;
 
@@ -63,5 +75,14 @@ mod tests {
         for neighbor in ORIGIN.neighbors() {
             assert_eq!(ORIGIN.dist(neighbor), 1);
         }
+    }
+
+    #[test]
+    fn test_get_all_neighbors() {
+        let hexes = vec![ORIGIN, Hex::new(-1, 1, 0)];
+        assert_set_equality(Hex::get_all_neighbors(hexes), vec![
+            Hex::new(1, -1, 0), Hex::new(1, 0, -1), Hex::new(0, 1, -1), Hex::new(0, -1, 1), Hex::new(-1, 0, 1),
+            Hex::new(-2, 1, 1), Hex::new(-2, 2, 0), Hex::new(-1, 2, -1),
+        ]);
     }
 }
