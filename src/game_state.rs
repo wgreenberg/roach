@@ -34,7 +34,7 @@ impl GameState {
             GameStatus::NotStarted => vec![ORIGIN],
             _ => ORIGIN.neighbors(),
         };
-        self.get_playable_pieces().iter()
+        self.get_unplayed_pieces().iter()
             .filter(|p| p.bug != Queen)
             .flat_map(|p| {
                 open_hexes.iter().clone().map(move |hex| {
@@ -44,7 +44,7 @@ impl GameState {
             .collect()
     }
 
-    fn get_playable_pieces(&self) -> Vec<Piece> {
+    fn get_unplayed_pieces(&self) -> Vec<Piece> {
         let mut lowest_ids: HashMap<Bug, u8> = HashMap::new();
         self.unplayed_pieces.iter()
             .for_each(|p| {
@@ -53,11 +53,18 @@ impl GameState {
                     *id = p.id;
                 }
             });
-        self.unplayed_pieces.iter()
-            .filter(|p| p.owner == self.current_player)
-            .filter(|p| Some(&p.id) == lowest_ids.get(&p.bug))
-            .cloned()
-            .collect()
+
+        let placement_hexes = self.unplayed_pieces.iter()
+            .filter(|p| {
+                let mut valid_piece = Some(&p.id) == lowest_ids.get(&p.bug);
+                valid_piece &= p.owner == self.current_player;
+                if self.turns.len() < 2 {
+                    valid_piece &= p.bug != Queen;
+                }
+                valid_piece
+            });
+
+        return placement_hexes.cloned().collect();
     }
 
     pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
@@ -167,6 +174,7 @@ mod test {
         let white_ant_1 = Piece::new(Ant, White);
         let turn_1 = Turn::Place(white_ant_1, ORIGIN);
         assert!(game.submit_turn(turn_1).is_ok());
+
         // 6 possible hexes * 4 possible pieces = 24 possible moves for Black
         assert_eq!(game.get_valid_moves().len(), 24);
         let black_spider_1 = Piece::new(Spider, Black);
@@ -176,6 +184,23 @@ mod test {
         assert_eq!(game.board.get(&ORIGIN), Some(&white_ant_1));
         assert_eq!(game.board.get(&west_of_origin), Some(&black_spider_1));
         assert_eq!(game.unplayed_pieces.len(), get_initial_pieces().len() - 2);
+    }
+
+    #[test]
+    fn test_make_third_move() {
+        let mut game = GameState::new();
+        let white_ant_1 = Piece::new(Ant, White);
+        let turn_1 = Turn::Place(white_ant_1, ORIGIN);
+        assert!(game.submit_turn(turn_1).is_ok());
+        let black_spider_1 = Piece::new(Spider, Black);
+        let west_of_origin = ORIGIN.add(Hex::new(-1, 1, 0));
+        let turn_2 = Turn::Place(black_spider_1, west_of_origin);
+        assert!(game.submit_turn(turn_2).is_ok());
+
+        // Only 3 valid hexes remain for placement, and 5 pieces = 15 moves
+        dbg!(game.get_valid_moves());
+        assert_eq!(game.get_valid_moves().len(), 15);
+        let white_beetle_1 = Piece::new(Beetle, White);
     }
 
     #[test]
