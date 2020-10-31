@@ -10,6 +10,10 @@ pub struct Hex {
 
 pub const ORIGIN: Hex = Hex { x: 0, y: 0, z: 0 };
 
+// Hexes are oriented pointy side down
+// nw  /\ ne
+//  w |  | e
+// sw  \/ se
 impl Hex {
     pub fn new(x: i64, y: i64, z: i64) -> Hex {
         assert_eq!(x + y + z, 0);
@@ -27,15 +31,16 @@ impl Hex {
         (dx + dy + dz) / 2
     }
 
+    // Directional neighbors
+    pub fn ne(&self)-> Hex { self.add(Hex::new(1, 0, -1)) }
+    pub fn nw(&self)-> Hex { self.add(Hex::new(0, 1, -1)) }
+    pub fn se(&self)-> Hex { self.add(Hex::new(0, -1, 1)) }
+    pub fn sw(&self)-> Hex { self.add(Hex::new(-1, 0, 1)) }
+    pub fn e(&self) -> Hex { self.add(Hex::new(1, -1, 0)) }
+    pub fn w(&self) -> Hex { self.add(Hex::new(-1, 1, 0)) }
+
     pub fn neighbors(&self) -> Vec<Hex> {
-        vec![
-            self.add(Hex::new(1, -1, 0)),
-            self.add(Hex::new(1, 0, -1)),
-            self.add(Hex::new(0, 1, -1)),
-            self.add(Hex::new(-1, 1, 0)),
-            self.add(Hex::new(-1, 0, 1)),
-            self.add(Hex::new(0, -1, 1)),
-        ]
+        vec![self.ne(), self.nw(), self.se(), self.sw(), self.e(), self.w()]
     }
 
     // Given a collection of hexes, return the list of unique unoccupied
