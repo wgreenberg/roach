@@ -32,21 +32,30 @@ impl GameState {
     pub fn get_valid_moves(&self) -> Vec<Turn> {
         let open_hexes = match self.status {
             GameStatus::NotStarted => vec![ORIGIN],
-            _ => ORIGIN.neighbors(),
+            _ => Hex::get_all_neighbors(self.board.keys().cloned().collect()),
         };
-        self.get_unplayed_pieces().iter()
-            .filter(|p| p.bug != Queen)
-            .flat_map(|p| {
-                open_hexes.iter().clone().map(move |hex| {
-                    return Turn::Place(p.clone(), hex.clone());
+
+        let possible_placements = self.get_placeable_pieces().iter()
+            .filter(|p| self.turns.len() >= 2 || p.bug != Queen)
+            .flat_map(|p| open_hexes.iter()
+                .filter(|&&hex| { // If past turn 2, filter out any hexes adjacent to enemy pieces
+                    if self.turns.len() >= 2 {
+                        let is_adjacent_to_enemies = self.board.iter()
+                            .filter(|(_, bp)| bp.owner != self.current_player)
+                            .fold(false, |acc, (enemy_hex, _)| acc || enemy_hex.is_adj(hex));
+                        return !is_adjacent_to_enemies;
+                    }
+                    true
                 })
-            })
-            .collect()
+                .map(move |hex| Turn::Place(p.clone(), hex.clone())))
+            .collect();
+        return possible_placements;
     }
 
-    fn get_unplayed_pieces(&self) -> Vec<Piece> {
+    fn get_placeable_pieces(&self) -> Vec<Piece> {
         let mut lowest_ids: HashMap<Bug, u8> = HashMap::new();
         self.unplayed_pieces.iter()
+            .filter(|p| p.owner == self.current_player)
             .for_each(|p| {
                 let id = lowest_ids.entry(p.bug).or_insert(p.id);
                 if p.id < *id {
@@ -54,17 +63,11 @@ impl GameState {
                 }
             });
 
-        let placement_hexes = self.unplayed_pieces.iter()
-            .filter(|p| {
-                let mut valid_piece = Some(&p.id) == lowest_ids.get(&p.bug);
-                valid_piece &= p.owner == self.current_player;
-                if self.turns.len() < 2 {
-                    valid_piece &= p.bug != Queen;
-                }
-                valid_piece
-            });
-
-        return placement_hexes.cloned().collect();
+        self.unplayed_pieces.iter()
+            .filter(|p| Some(&p.id) == lowest_ids.get(&p.bug))
+            .filter(|p| p.owner == self.current_player)
+            .cloned()
+            .collect()
     }
 
     pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
@@ -136,11 +139,15 @@ mod test {
     use std::hash::Hash;
     use std::fmt::Debug;
 
-    fn assert_set_equality<T>(a: Vec<T>, b: Vec<T>)
+    fn assert_set_equality<T>(got: Vec<T>, expected: Vec<T>)
         where T: Clone + Eq + Hash + Debug {
-        let hash_a: HashSet<T> = a.iter().cloned().collect();
-        let hash_b: HashSet<T> = b.iter().cloned().collect();
-        assert_eq!(hash_a, hash_b);
+        let got_hash: HashSet<T> = got.iter().cloned().collect();
+        let expected_hash: HashSet<T> = expected.iter().cloned().collect();
+        if got_hash != expected_hash {
+            let unwanted: HashSet<&T> = got_hash.difference(&expected_hash).collect();
+            let needed: HashSet<&T> = expected_hash.difference(&got_hash).collect();
+            panic!("set inequality! expected len {}, got {}\nmissing {:?}\nunwanted {:?}", expected_hash.len(), got_hash.len(), needed, unwanted);
+        }
     }
 
     #[test]
@@ -186,7 +193,7 @@ mod test {
         assert_eq!(game.unplayed_pieces.len(), get_initial_pieces().len() - 2);
     }
 
-    //#[test]
+    #[test]
     fn test_make_third_move() {
         let mut game = GameState::new();
         let white_ant_1 = Piece::new(Ant, White);
@@ -197,10 +204,30 @@ mod test {
         let turn_2 = Turn::Place(black_spider_1, west_of_origin);
         assert!(game.submit_turn(turn_2).is_ok());
 
+        let mut pieces = Vec::new();
+        let mut hexes = Vec::new();
+        game.get_valid_moves().iter().for_each(|m| match m {
+            &Turn::Place(piece, hex) => {
+                pieces.push(piece);
+                hexes.push(hex);
+            },
+            _ => panic!("moves are invalid here!"),
+        });
         // Only 3 valid hexes remain for placement, and 5 pieces = 15 moves
-        dbg!(game.get_valid_moves());
+        assert_set_equality(pieces, vec![
+            Piece { bug: Ant, owner: White, id: 2 },
+            Piece::new(Beetle, White),
+            Piece::new(Grasshopper, White),
+            Piece::new(Queen, White),
+            Piece::new(Spider, White),
+        ]);
+        assert_set_equality(hexes, vec![ORIGIN.ne(), ORIGIN.e(), ORIGIN.se()]);
         assert_eq!(game.get_valid_moves().len(), 15);
-        let white_beetle_1 = Piece::new(Beetle, White);
+
+        let white_ant_2 = Piece { bug: Ant, owner: White, id: 2 };
+        let east_of_origin = ORIGIN.e();
+        let turn_3 = Turn::Place(white_ant_2, east_of_origin);
+        assert!(game.submit_turn(turn_3).is_ok());
     }
 
     #[test]
