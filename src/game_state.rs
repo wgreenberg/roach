@@ -32,12 +32,14 @@ impl GameState {
     pub fn turn_no(&self) -> usize { self.turns.len() + 1 }
 
     pub fn get_valid_moves(&self) -> Vec<Turn> {
+        let mut moves = Vec::new();
         let open_hexes = match self.status {
             GameStatus::NotStarted => vec![ORIGIN],
-            _ => Hex::get_all_neighbors(self.board.keys().cloned().collect()),
+            _ => Hex::get_empty_neighbors(&self.board.keys().cloned().collect()),
         };
 
-        let possible_placements = self.get_placeable_pieces().iter()
+        // start with the set of piece placements
+        moves.extend(self.get_placeable_pieces().iter()
             .flat_map(|p| open_hexes.iter()
                 .filter(|&&hex| {
                     // If past turn 2, filter out any hexes adjacent to enemy pieces
@@ -48,9 +50,36 @@ impl GameState {
                         !is_adjacent_to_enemies
                     } else { true }
                 })
-                .map(move |hex| Turn::Place(p.clone(), hex.clone())))
-            .collect();
-        return possible_placements;
+                .map(move |hex| Turn::Place(p.clone(), hex.clone()))));
+
+        // if this player's queen is in play, add in the set of possible piece moves
+        if !self.unplayed_pieces.contains(&Piece::new(Queen, self.current_player)) {
+            moves.extend(self.board.iter()
+                .filter(|(_, p)| p.owner == self.current_player) // once the pillbug is implemented, this has gotta go
+                .flat_map(|(&start, &p)| self.get_piece_moves(p, start)));
+        }
+
+        return moves;
+    }
+
+    fn get_piece_moves(&self, piece: Piece, start: Hex) -> Vec<Turn> {
+        // check if removing this piece breaks the One Hive Rule
+        let mut board_without_piece = self.board.clone();
+        board_without_piece.remove(&start);
+        let hexes_without_piece = board_without_piece.keys().cloned().collect();
+        if !Hex::all_contiguous(&hexes_without_piece) {
+            return vec![];
+        }
+        match piece.bug {
+            Queen => {
+                let possible_moves = start.pathfind(hexes_without_piece, 1);
+                vec![
+                    Turn::Move(White, Piece::new(Queen, White), ORIGIN.ne()),
+                    Turn::Move(White, Piece::new(Queen, White), ORIGIN.se()),
+                ]
+            },
+            _ => vec![],
+        }
     }
 
     fn get_placeable_pieces(&self) -> Vec<Piece> {
@@ -264,6 +293,25 @@ mod test {
         });
         assert_set_equality(pieces, vec![Piece::new(Queen, Black)]);
         assert!(game.submit_turn(Turn::Place(Piece::new(Queen, Black), ORIGIN.w().nw())).is_ok());
+    }
+
+    #[test]
+    fn test_simple_movement() {
+        let mut game = GameState::new();
+        // wS - bA - wA - wQ
+        assert!(game.submit_turn(Turn::Place(Piece::new(Ant, White), ORIGIN)).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Ant, Black), ORIGIN.w())).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Queen, White), ORIGIN.e())).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Spider, Black), ORIGIN.w().w())).is_ok());
+        let moves: Vec<Turn> = game.get_valid_moves().iter().filter(|turn| match turn {
+            Turn::Place(_, _) => false,
+            Turn::Move(_, _, _) => true,
+        }).cloned().collect();
+        assert!(moves.len() > 0);
+        assert_eq!(moves, vec![
+            Turn::Move(White, Piece::new(Queen, White), ORIGIN.ne()),
+            Turn::Move(White, Piece::new(Queen, White), ORIGIN.se()),
+        ]);
     }
 
     #[test]

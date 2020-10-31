@@ -49,12 +49,33 @@ impl Hex {
 
     // Given a collection of hexes, return the list of unique unoccupied
     // neighboring hexes
-    pub fn get_all_neighbors(hexes: Vec<Hex>) -> Vec<Hex> {
+    pub fn get_empty_neighbors(hexes: &Vec<Hex>) -> Vec<Hex> {
         let neighbors = hexes.iter()
             .flat_map(|hex| hex.neighbors());
-        let set: HashSet<Hex> = HashSet::from_iter(neighbors);
+        let neighbors_set: HashSet<Hex> = HashSet::from_iter(neighbors);
         let hexes_set = HashSet::from_iter(hexes.iter().cloned());
-        set.difference(&hexes_set).cloned().collect()
+        neighbors_set.difference(&hexes_set).cloned().collect()
+    }
+
+    pub fn all_contiguous(hexes: &Vec<Hex>) -> bool {
+        if hexes.len() == 0 { return false; }
+        let mut visited: HashSet<Hex> = HashSet::new();
+        let start = hexes[0];
+        dfs(start, &hexes, &mut visited);
+        visited.len() == hexes.len()
+    }
+
+    pub fn pathfind(&self, hexes: Vec<Hex>, limit: usize) -> Vec<Hex> {
+        todo!();
+    }
+}
+
+fn dfs(hex: Hex, hexes: &Vec<Hex>, visited: &mut HashSet<Hex>) {
+    visited.insert(hex);
+    for neighbor in hex.neighbors() {
+        if hexes.contains(&neighbor) && !visited.contains(&neighbor) {
+            dfs(neighbor, hexes, visited);
+        }
     }
 }
 
@@ -87,11 +108,23 @@ mod tests {
     }
 
     #[test]
-    fn test_get_all_neighbors() {
+    fn test_get_empty_neighbors() {
         let hexes = vec![ORIGIN, Hex::new(-1, 1, 0)];
-        assert_set_equality(Hex::get_all_neighbors(hexes), vec![
+        assert_set_equality(Hex::get_empty_neighbors(&hexes), vec![
             Hex::new(1, -1, 0), Hex::new(1, 0, -1), Hex::new(0, 1, -1), Hex::new(0, -1, 1), Hex::new(-1, 0, 1),
             Hex::new(-2, 1, 1), Hex::new(-2, 2, 0), Hex::new(-1, 2, -1),
         ]);
+    }
+
+    #[test]
+    fn test_all_contiguous() {
+        // positive cases
+        assert!(Hex::all_contiguous(&vec![ORIGIN]));
+        assert!(Hex::all_contiguous(&vec![ORIGIN, ORIGIN.e()]));
+
+        // negative cases
+        assert!(!Hex::all_contiguous(&vec![]));
+        assert!(!Hex::all_contiguous(&vec![ORIGIN, ORIGIN.e().e()]));
+        assert!(!Hex::all_contiguous(&vec![ORIGIN, ORIGIN.w(), ORIGIN.e().e()]));
     }
 }
