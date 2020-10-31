@@ -31,6 +31,10 @@ impl Hex {
         (dx + dy + dz) / 2
     }
 
+    pub fn is_adj(&self, other: Hex) -> bool {
+        self.neighbors().contains(&other)
+    }
+
     // Directional neighbors
     pub fn ne(&self)-> Hex { self.add(Hex::new(1, 0, -1)) }
     pub fn nw(&self)-> Hex { self.add(Hex::new(0, 1, -1)) }
