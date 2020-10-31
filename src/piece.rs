@@ -25,8 +25,8 @@ impl Piece {
     }
 
     pub fn new_set(bug: Bug, owner: Player, num_pieces: u8) -> Vec<Piece> {
-        (1..num_pieces).map(|i| Piece {
-            bug, owner, id: i,
+        (0..num_pieces).map(|i| Piece {
+            bug, owner, id: i + 1,
         }).collect()
     }
 }

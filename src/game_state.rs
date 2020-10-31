@@ -29,6 +29,8 @@ impl GameState {
         }
     }
 
+    pub fn turn_no(&self) -> usize { self.turns.len() + 1 }
+
     pub fn get_valid_moves(&self) -> Vec<Turn> {
         let open_hexes = match self.status {
             GameStatus::NotStarted => vec![ORIGIN],
@@ -36,16 +38,15 @@ impl GameState {
         };
 
         let possible_placements = self.get_placeable_pieces().iter()
-            .filter(|p| self.turns.len() >= 2 || p.bug != Queen)
             .flat_map(|p| open_hexes.iter()
-                .filter(|&&hex| { // If past turn 2, filter out any hexes adjacent to enemy pieces
-                    if self.turns.len() >= 2 {
+                .filter(|&&hex| {
+                    // If past turn 2, filter out any hexes adjacent to enemy pieces
+                    if self.turn_no() > 2 {
                         let is_adjacent_to_enemies = self.board.iter()
                             .filter(|(_, bp)| bp.owner != self.current_player)
                             .fold(false, |acc, (enemy_hex, _)| acc || enemy_hex.is_adj(hex));
-                        return !is_adjacent_to_enemies;
-                    }
-                    true
+                        !is_adjacent_to_enemies
+                    } else { true }
                 })
                 .map(move |hex| Turn::Place(p.clone(), hex.clone())))
             .collect();
@@ -53,6 +54,14 @@ impl GameState {
     }
 
     fn get_placeable_pieces(&self) -> Vec<Piece> {
+        // if it's a player's 4th turn (i.e. game turn 7 or 8) and their queen isn't out, force it
+        if self.turn_no() == 7 || self.turn_no() == 8 {
+            let player_queen = Piece::new(Queen, self.current_player);
+            if self.unplayed_pieces.contains(&player_queen) {
+                return vec![player_queen];
+            }
+        }
+
         let mut lowest_ids: HashMap<Bug, u8> = HashMap::new();
         self.unplayed_pieces.iter()
             .filter(|p| p.owner == self.current_player)
@@ -64,6 +73,7 @@ impl GameState {
             });
 
         self.unplayed_pieces.iter()
+            .filter(|p| self.turn_no() > 2 || p.bug != Queen) // disallow queen plays on turn 1
             .filter(|p| Some(&p.id) == lowest_ids.get(&p.bug))
             .filter(|p| p.owner == self.current_player)
             .cloned()
@@ -146,7 +156,8 @@ mod test {
         if got_hash != expected_hash {
             let unwanted: HashSet<&T> = got_hash.difference(&expected_hash).collect();
             let needed: HashSet<&T> = expected_hash.difference(&got_hash).collect();
-            panic!("set inequality! expected len {}, got {}\nmissing {:?}\nunwanted {:?}", expected_hash.len(), got_hash.len(), needed, unwanted);
+            panic!("set inequality! expected len {}, got {}\nmissing {:?}\nunwanted {:?}",
+                expected_hash.len(), got_hash.len(), needed, unwanted);
         }
     }
 
@@ -228,6 +239,31 @@ mod test {
         let east_of_origin = ORIGIN.e();
         let turn_3 = Turn::Place(white_ant_2, east_of_origin);
         assert!(game.submit_turn(turn_3).is_ok());
+    }
+
+    #[test]
+    fn test_queen_placement_rule() {
+        let mut game = GameState::new();
+        assert!(game.submit_turn(Turn::Place(Piece::new(Ant, White), ORIGIN)).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Ant, Black), ORIGIN.w())).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Spider, White), ORIGIN.e())).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Spider, Black), ORIGIN.w().w())).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Beetle, White), ORIGIN.e().e())).is_ok());
+        assert!(game.submit_turn(Turn::Place(Piece::new(Beetle, Black), ORIGIN.w().w().w())).is_ok());
+        let mut pieces = Vec::new();
+        game.get_valid_moves().iter().for_each(|m| match m {
+            &Turn::Place(piece, _) => pieces.push(piece),
+            _ => panic!("moves are invalid here!"),
+        });
+        assert_set_equality(pieces, vec![Piece::new(Queen, White)]);
+        assert!(game.submit_turn(Turn::Place(Piece::new(Queen, White), ORIGIN.ne())).is_ok());
+        let mut pieces = Vec::new();
+        game.get_valid_moves().iter().for_each(|m| match m {
+            &Turn::Place(piece, _) => pieces.push(piece),
+            _ => panic!("moves are invalid here!"),
+        });
+        assert_set_equality(pieces, vec![Piece::new(Queen, Black)]);
+        assert!(game.submit_turn(Turn::Place(Piece::new(Queen, Black), ORIGIN.w().nw())).is_ok());
     }
 
     #[test]
