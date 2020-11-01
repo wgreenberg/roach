@@ -65,9 +65,49 @@ impl Hex {
         visited.len() == hexes.len()
     }
 
-    pub fn pathfind(&self, hexes: Vec<Hex>, limit: usize) -> Vec<Hex> {
-        todo!();
+    pub fn get_pincers(&self, other: Hex) -> Option<(Hex, Hex)> {
+        if *self == other { return None; }
+        let our_neighbors: HashSet<Hex> = HashSet::from_iter(self.neighbors());
+        let their_neighbors: HashSet<Hex> = HashSet::from_iter(other.neighbors());
+        let mut mutuals = our_neighbors.intersection(&their_neighbors);
+        match (mutuals.next(), mutuals.next()) {
+            (Some(&a), Some(&b)) => Some((a, b)),
+            _ => None,
+        }
     }
+
+    pub fn pathfind(&self, hexes: &Vec<Hex>, barriers: &Vec<Hex>, dist: Option<usize>) -> Vec<Hex> {
+        if dist == Some(0) { return vec![*self]; }
+        let mut visited: HashSet<Hex> = HashSet::new();
+        let terminal_hexes = dfs_with_gate_checks(*self, hexes, barriers, &mut visited, 0, dist);
+        match dist {
+            Some(_) => terminal_hexes,
+            None => visited.iter()
+                .filter(|&&h| h != *self)
+                .cloned().collect(),
+        }
+    }
+}
+
+fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited: &mut HashSet<Hex>, dist: usize, max_dist: Option<usize>) -> Vec<Hex> {
+    visited.insert(hex);
+    if let Some(max) = max_dist {
+        if dist == max {
+            return vec![hex];
+        }
+    }
+
+    let mut result = Vec::new();
+    for neighbor in hex.neighbors() {
+        if hexes.contains(&neighbor) && !visited.contains(&neighbor) {
+            let (pincer_a, pincer_b) = hex.get_pincers(neighbor).unwrap();
+            if barriers.contains(&pincer_a) && barriers.contains(&pincer_b) {
+                continue;
+            }
+            result.append(&mut dfs_with_gate_checks(neighbor, hexes, barriers, visited, dist + 1, max_dist));
+        }
+    }
+    return result;
 }
 
 fn dfs(hex: Hex, hexes: &Vec<Hex>, visited: &mut HashSet<Hex>) {
@@ -97,6 +137,12 @@ mod tests {
         for neighbor in ORIGIN.neighbors() {
             assert_eq!(ORIGIN.dist(neighbor), 1);
         }
+
+        let mut inner_ring = ORIGIN.neighbors();
+        inner_ring.push(ORIGIN);
+        for neighbor in Hex::get_empty_neighbors(&inner_ring) {
+            assert_eq!(ORIGIN.dist(neighbor), 2);
+        }
     }
 
     #[test]
@@ -118,5 +164,40 @@ mod tests {
         assert!(!Hex::all_contiguous(&vec![]));
         assert!(!Hex::all_contiguous(&vec![ORIGIN, ORIGIN.e().e()]));
         assert!(!Hex::all_contiguous(&vec![ORIGIN, ORIGIN.w(), ORIGIN.e().e()]));
+    }
+
+    #[test]
+    fn test_pathfinding() {
+        //         x o
+        // o - s - o x
+        //           o
+        let map = vec![
+            ORIGIN,
+            ORIGIN.e(), ORIGIN.e().se(), ORIGIN.e().ne(),
+            ORIGIN.w(), ORIGIN.w().nw(), ORIGIN.w().nw().nw(),
+        ];
+        let barriers = vec![
+            ORIGIN.ne(), ORIGIN.e().e(),
+        ];
+        assert_set_equality(ORIGIN.pathfind(&map, &barriers, Some(0)), vec![ORIGIN]);
+        assert_set_equality(ORIGIN.pathfind(&map, &barriers, Some(1)), vec![
+            ORIGIN.e(), ORIGIN.w()
+        ]);
+        assert_set_equality(ORIGIN.pathfind(&map, &barriers, Some(2)), vec![
+            ORIGIN.e().se(), ORIGIN.w().nw(),
+        ]);
+        assert_set_equality(ORIGIN.pathfind(&map, &barriers, None), vec![
+            ORIGIN.e(), ORIGIN.e().se(),
+            ORIGIN.w(), ORIGIN.w().nw(), ORIGIN.w().nw().nw(),
+        ]);
+    }
+
+    #[test]
+    fn test_get_pincers() {
+        assert_eq!(ORIGIN.get_pincers(ORIGIN), None);
+        let p = ORIGIN.get_pincers(ORIGIN.e());
+        assert!(p == Some((ORIGIN.se(), ORIGIN.ne())) || p == Some((ORIGIN.ne(), ORIGIN.se())));
+        let p = ORIGIN.get_pincers(ORIGIN.nw());
+        assert!(p == Some((ORIGIN.w(), ORIGIN.ne())) || p == Some((ORIGIN.ne(), ORIGIN.w())));
     }
 }

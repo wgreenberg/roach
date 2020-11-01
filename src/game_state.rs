@@ -66,17 +66,16 @@ impl GameState {
         // check if removing this piece breaks the One Hive Rule
         let mut board_without_piece = self.board.clone();
         board_without_piece.remove(&start);
-        let hexes_without_piece = board_without_piece.keys().cloned().collect();
-        if !Hex::all_contiguous(&hexes_without_piece) {
+        let pieces_after_pickup = board_without_piece.keys().cloned().collect();
+        let hexes_after_pickup = Hex::get_empty_neighbors(&pieces_after_pickup);
+        if !Hex::all_contiguous(&pieces_after_pickup) {
             return vec![];
         }
         match piece.bug {
             Queen => {
-                let possible_moves = start.pathfind(hexes_without_piece, 1);
-                vec![
-                    Turn::Move(White, Piece::new(Queen, White), ORIGIN.ne()),
-                    Turn::Move(White, Piece::new(Queen, White), ORIGIN.se()),
-                ]
+                start.pathfind(&hexes_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                    .map(|&end| Turn::Move(self.current_player, piece, end))
+                    .collect()
             },
             _ => vec![],
         }
@@ -284,7 +283,7 @@ mod test {
     #[test]
     fn test_simple_movement() {
         let mut game = GameState::new();
-        // wS - bA - wA - wQ
+        // bS - bA - wA - wQ
         assert!(game.submit_turn(Turn::Place(Piece::new(Ant, White), ORIGIN)).is_ok());
         assert!(game.submit_turn(Turn::Place(Piece::new(Ant, Black), ORIGIN.w())).is_ok());
         assert!(game.submit_turn(Turn::Place(Piece::new(Queen, White), ORIGIN.e())).is_ok());
