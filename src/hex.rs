@@ -82,15 +82,7 @@ fn dfs(hex: Hex, hexes: &Vec<Hex>, visited: &mut HashSet<Hex>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::hash::Hash;
-    use std::fmt::Debug;
-
-    fn assert_set_equality<T>(a: Vec<T>, b: Vec<T>)
-        where T: Clone + Eq + Hash + Debug {
-        let hash_a: HashSet<T> = a.iter().cloned().collect();
-        let hash_b: HashSet<T> = b.iter().cloned().collect();
-        assert_eq!(hash_a, hash_b);
-    }
+    use test_utils::assert_set_equality;
 
     #[test]
     fn test_neighbors() {

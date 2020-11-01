@@ -3,3 +3,10 @@
 [[package]]
 name = "rs-hive"
 version = "0.1.0"
+dependencies = [
+ "test_utils",
+]
+
+[[package]]
+name = "test_utils"
+version = "0.1.0"
