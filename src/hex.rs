@@ -192,6 +192,21 @@ mod tests {
         ]);
     }
 
+    fn test_pathfinding_with_gap() {
+        let barriers = vec![
+            ORIGIN,
+            ORIGIN.sw(),
+            ORIGIN.sw().se(),
+            ORIGIN.sw().se().e(),
+            ORIGIN.sw().se().e().ne(),
+        ];
+        let map = Hex::get_empty_neighbors(&barriers);
+        assert_set_equality(ORIGIN.ne().pathfind(&map, &barriers, Some(2)), vec![
+            ORIGIN.e().e(),
+            ORIGIN.w(),
+        ]);
+    }
+
     #[test]
     fn test_get_pincers() {
         assert_eq!(ORIGIN.get_pincers(ORIGIN), None);
