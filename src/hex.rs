@@ -24,6 +24,10 @@ impl Hex {
         Hex { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
     }
 
+    pub fn sub(&self, other: Hex) -> Hex {
+        Hex { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
+    }
+
     pub fn dist(&self, other: Hex) -> i64 {
         let dx = (self.x - other.x).abs();
         let dy = (self.y - other.y).abs();

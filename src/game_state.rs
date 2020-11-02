@@ -87,6 +87,18 @@ impl GameState {
                     .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
+            Grasshopper => {
+                start.neighbors().iter()
+                    .filter(|direction| self.board.contains_key(direction))
+                    .map(|direction| {
+                        let mut vector = direction.sub(start);
+                        while self.board.contains_key(&direction.add(vector)) {
+                            vector = vector.add(vector);
+                        }
+                        Turn::Move(piece, direction.add(vector))
+                    })
+                    .collect()
+            },
             _ => vec![],
         }
     }
@@ -406,6 +418,32 @@ mod test {
             Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().nw()),
             Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().w()),
             Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().sw()),
+        ]);
+    }
+
+    #[test]
+    fn test_grasshoppers() {
+        let mut game = GameState::new();
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().nw().w()));
+        assert_set_equality(get_valid_movements(&game), vec![
+            Turn::Move(Piece::new(Queen, White), ORIGIN.ne()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.w().w()),
+        ]);
+        check_move(&mut game, Turn::Move(Piece::new(Grasshopper, White), ORIGIN.w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, Black), ORIGIN.w().w().nw().nw()));
+        assert_set_equality(get_valid_movements(&game), vec![
+            Turn::Move(Piece::new(Queen, White), ORIGIN),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, White), ORIGIN),
+            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.w().w().nw().nw().nw()),
         ]);
     }
 
