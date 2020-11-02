@@ -7,6 +7,7 @@ use std::collections::HashMap;
 pub struct GameState {
     pub unplayed_pieces: Vec<Piece>,
     pub board: HashMap<Hex, Piece>,
+    pub stacks: HashMap<Hex, Vec<Piece>>,
     pub turns: Vec<Turn>,
     pub current_player: Player,
     pub status: GameStatus,
@@ -23,6 +24,7 @@ impl GameState {
         GameState {
             unplayed_pieces: get_initial_pieces(),
             board: HashMap::new(),
+            stacks: HashMap::new(),
             turns: Vec::new(),
             current_player: White,
             status: GameStatus::NotStarted,
@@ -66,6 +68,13 @@ impl GameState {
         // check if removing this piece breaks the One Hive Rule
         let mut board_without_piece = self.board.clone();
         board_without_piece.remove(&start);
+        let mut on_hive = false;
+        if let Some(stack) = self.stacks.get(&start) {
+            if let Some(&under) = stack.last() {
+                on_hive = true;
+                board_without_piece.insert(start, under);
+            }
+        }
         let pieces_after_pickup = board_without_piece.keys().cloned().collect();
         let hexes_after_pickup = Hex::get_empty_neighbors(&pieces_after_pickup);
         if !Hex::all_contiguous(&pieces_after_pickup) {
@@ -74,6 +83,14 @@ impl GameState {
         match piece.bug {
             Ant => {
                 start.pathfind(&hexes_after_pickup, &pieces_after_pickup, None).iter()
+                    .map(|&end| Turn::Move(piece, end))
+                    .collect()
+            },
+            Beetle => {
+                let empty = vec![];
+                let barriers = if on_hive { &empty } else { &pieces_after_pickup };
+                start.pathfind(&hexes_after_pickup, barriers, Some(1)).iter()
+                    .chain(start.pathfind(&pieces_after_pickup, &vec![], Some(1)).iter())
                     .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
@@ -99,7 +116,6 @@ impl GameState {
                     })
                     .collect()
             },
-            _ => vec![],
         }
     }
 
@@ -130,6 +146,11 @@ impl GameState {
             .collect()
     }
 
+    fn get_hex_for_piece(&self, piece: Piece) -> Option<Hex> {
+        self.board.iter()
+            .find_map(|(&key, &value)| if value == piece { Some(key) } else { None })
+    }
+
     pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
         if !self.get_valid_moves().contains(&turn) {
             return Err(TurnError::InvalidMove)
@@ -145,8 +166,16 @@ impl GameState {
                 self.unplayed_pieces.retain(|&p| p != piece);
             },
             Turn::Move(piece, dest) => {
-                self.board.retain(|_, &mut p| p != piece);
-                self.board.insert(dest, piece);
+                let from = self.get_hex_for_piece(piece).unwrap();
+                self.board.remove(&from);
+                if let Some(stack) = self.stacks.get_mut(&from) {
+                    if let Some(under) = stack.pop() {
+                        self.board.insert(from, under);
+                    }
+                }
+                if let Some(existing) = self.board.insert(dest, piece) {
+                    self.stacks.entry(dest).or_insert(Vec::new()).push(existing);
+                }
             },
         }
         self.turns.push(turn);
@@ -445,6 +474,60 @@ mod test {
             Turn::Move(Piece::new(Grasshopper, White), ORIGIN.nw().nw()),
             Turn::Move(Piece::new(Grasshopper, White), ORIGIN.w().w().nw().nw().nw()),
         ]);
+    }
+
+    #[test]
+    fn test_beetles() {
+        let mut game = GameState::new();
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, Black), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().w()));
+        assert_set_equality(get_valid_movements(&game), vec![
+            Turn::Move(Piece::new(Queen, White), ORIGIN.ne()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.ne()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.sw()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.w()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.nw()),
+        ]);
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.w()));
+        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, Black)]));
+        assert_eq!(game.board.get(&ORIGIN.w()), Some(&Piece::new(Beetle, White)));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.w()));
+        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, Black), Piece::new(Beetle, White)]));
+        assert_eq!(game.board.get(&ORIGIN.w()), Some(&Piece::new(Beetle, Black)));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN));
+        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, Black)]));
+        assert_eq!(game.board.get(&ORIGIN.w()), Some(&Piece::new(Beetle, White)));
+        assert_set_equality(game.get_valid_moves(), vec![
+            Turn::Move(Piece::new(Beetle, White), ORIGIN),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.nw()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.w().nw()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.w().w()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.w().sw()),
+            Turn::Move(Piece::new(Beetle, White), ORIGIN.sw()),
+        ]);
+
+        // complete a circle to test placing beetles in holes
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.sw()));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.e()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, White), ORIGIN.sw().sw()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, Black), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.sw().sw().w()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, Black), ORIGIN.sw().w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN.ne()));
+
+        // finally, move the beetle into the center of the hole
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw().w()));
+        check_move(&mut game, Turn::Place(Piece { bug: Ant, id: 2, owner: White }, ORIGIN.ne().ne()));
+        // and move it out
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw()));
     }
 
     #[test]
