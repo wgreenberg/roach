@@ -127,6 +127,64 @@ impl GameState {
         self.turns.push(turn);
         Ok(())
     }
+
+    pub fn draw_board(&self) {
+        use std::cmp;
+        let pieces: Vec<(&Hex, &Piece)> = self.board.iter().collect();
+        let furthest_dist = pieces.iter().fold(0, |max, (hex, _)| {
+            cmp::max(max, ORIGIN.dist(**hex))
+        });
+        let height = furthest_dist * 2;
+        let width = furthest_dist * 2;
+        let row_start = height/2;
+        let col_start = width/2;
+        for i in -row_start..row_start {
+            if i % 2 == 0 {
+                for _ in 0..width {
+                    print!(" / \\");
+                }
+                if i != 0 {
+                    print!(" /");
+                }
+                print!("\n");
+            }
+            if i % 2 != 0 {
+                print!("  ");
+            }
+            for j in -col_start..col_start {
+                let x = j - (i - (i & 1))/2;
+                let z = i;
+                let y = -x - z;
+                let lookup = Hex::new(x, y, z);
+                if let Some(piece) = self.board.get(&lookup) {
+                    let symbol = match piece.bug {
+                        Queen => "q",
+                        Ant => "a",
+                        Spider => "s",
+                        Beetle => "b",
+                        _ => "x",
+                    };
+                    print!("| {} ", symbol);
+                } else {
+                    print!("|   ");
+                }
+            }
+            print!("|");
+            print!("\n");
+            if i == row_start - 1 && i % 2 != 0 {
+                print!("  ");
+            }
+            if i % 2 == 0 || i == row_start - 1 {
+                for _ in 0..width {
+                    print!(" \\ /");
+                }
+                if i != row_start - 1 {
+                    print!(" \\");
+                }
+                print!("\n");
+            }
+        }
+    }
 }
 
 fn get_initial_pieces() -> Vec<Piece> {
