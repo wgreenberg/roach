@@ -122,7 +122,10 @@ impl GameState {
                 assert!(self.board.insert(hex, piece).is_none());
                 self.unplayed_pieces.retain(|&p| p != piece);
             },
-            Turn::Move(_, _, _) => todo!(),
+            Turn::Move(_, piece, dest) => {
+                self.board.retain(|_, &mut p| p != piece);
+                self.board.insert(dest, piece);
+            },
         }
         self.turns.push(turn);
         Ok(())
