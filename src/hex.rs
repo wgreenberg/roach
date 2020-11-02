@@ -104,7 +104,7 @@ fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited
             if barriers.contains(&pincer_a) && barriers.contains(&pincer_b) {
                 continue;
             }
-            result.append(&mut dfs_with_gate_checks(neighbor, hexes, barriers, visited, dist + 1, max_dist));
+            result.extend(dfs_with_gate_checks(neighbor, hexes, barriers, visited, dist + 1, max_dist));
         }
     }
     return result;
