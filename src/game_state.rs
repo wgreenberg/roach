@@ -74,17 +74,17 @@ impl GameState {
         match piece.bug {
             Ant => {
                 start.pathfind(&hexes_after_pickup, &pieces_after_pickup, None).iter()
-                    .map(|&end| Turn::Move(self.current_player, piece, end))
+                    .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
             Queen => {
                 start.pathfind(&hexes_after_pickup, &pieces_after_pickup, Some(1)).iter()
-                    .map(|&end| Turn::Move(self.current_player, piece, end))
+                    .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
             Spider => {
                 start.pathfind(&hexes_after_pickup, &pieces_after_pickup, Some(3)).iter()
-                    .map(|&end| Turn::Move(self.current_player, piece, end))
+                    .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
             _ => vec![],
@@ -132,7 +132,7 @@ impl GameState {
                 assert!(self.board.insert(hex, piece).is_none());
                 self.unplayed_pieces.retain(|&p| p != piece);
             },
-            Turn::Move(_, piece, dest) => {
+            Turn::Move(piece, dest) => {
                 self.board.retain(|_, &mut p| p != piece);
                 self.board.insert(dest, piece);
             },
@@ -238,7 +238,7 @@ pub enum GameStatus {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Turn  {
     Place(Piece, Hex),
-    Move(Player, Piece, Hex),
+    Move(Piece, Hex),
 }
 
 #[cfg(test)]
@@ -361,57 +361,57 @@ mod test {
         assert!(game.submit_turn(Turn::Place(Piece::new(Spider, Black), ORIGIN.w().w())).is_ok());
         let moves: Vec<Turn> = game.get_valid_moves().iter().filter(|turn| match turn {
             Turn::Place(_, _) => false,
-            Turn::Move(_, _, _) => true,
+            Turn::Move(_, _) => true,
         }).cloned().collect();
         assert_set_equality(moves, vec![
-            Turn::Move(White, Piece::new(Queen, White), ORIGIN.ne()),
-            Turn::Move(White, Piece::new(Queen, White), ORIGIN.se()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.ne()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.se()),
         ]);
-        assert!(game.submit_turn(Turn::Move(White, Piece::new(Queen, White), ORIGIN.ne())).is_ok());
+        assert!(game.submit_turn(Turn::Move(Piece::new(Queen, White), ORIGIN.ne())).is_ok());
         assert!(game.submit_turn(Turn::Place(Piece::new(Queen, Black), ORIGIN.w().nw())).is_ok());
         let moves: Vec<Turn> = game.get_valid_moves().iter().filter(|turn| match turn {
             Turn::Place(_, _) => false,
-            Turn::Move(_, _, _) => true,
+            Turn::Move(_, _) => true,
         }).cloned().collect();
         assert_set_equality(moves, vec![
-            Turn::Move(White, Piece::new(Queen, White), ORIGIN.nw()),
-            Turn::Move(White, Piece::new(Queen, White), ORIGIN.e()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.nw()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.e()),
         ]);
         assert!(game.submit_turn(Turn::Place(Piece::new(Spider, White), ORIGIN.e())).is_ok());
         game.draw_board();
         let moves: Vec<Turn> = game.get_valid_moves().iter().filter(|turn| match turn {
             Turn::Place(_, _) => false,
-            Turn::Move(_, _, _) => true,
+            Turn::Move(_, _) => true,
         }).cloned().collect();
         assert_set_equality(moves, vec![
-            Turn::Move(Black, Piece::new(Spider, Black), ORIGIN.w().nw().ne()),
-            Turn::Move(Black, Piece::new(Spider, Black), ORIGIN.se()),
-            Turn::Move(Black, Piece::new(Queen, Black), ORIGIN.nw()),
-            Turn::Move(Black, Piece::new(Queen, Black), ORIGIN.w().w().nw()),
+            Turn::Move(Piece::new(Spider, Black), ORIGIN.w().nw().ne()),
+            Turn::Move(Piece::new(Spider, Black), ORIGIN.se()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.nw()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.w().w().nw()),
         ]);
-        assert!(game.submit_turn(Turn::Move(Black, Piece::new(Spider, Black), ORIGIN.se())).is_ok());
-        assert!(game.submit_turn(Turn::Move(White, Piece::new(Queen, White), ORIGIN.nw())).is_ok());
+        assert!(game.submit_turn(Turn::Move(Piece::new(Spider, Black), ORIGIN.se())).is_ok());
+        assert!(game.submit_turn(Turn::Move(Piece::new(Queen, White), ORIGIN.nw())).is_ok());
         let moves: Vec<Turn> = game.get_valid_moves().iter().filter(|turn| match turn {
             Turn::Place(_, _) => false,
-            Turn::Move(_, _, _) => true,
+            Turn::Move(_, _) => true,
         }).cloned().collect();
         assert_set_equality(moves, vec![
-            Turn::Move(Black, Piece::new(Spider, Black), ORIGIN.e().ne()),
-            Turn::Move(Black, Piece::new(Spider, Black), ORIGIN.w().w()),
-            Turn::Move(Black, Piece::new(Queen, Black), ORIGIN.nw().nw()),
-            Turn::Move(Black, Piece::new(Queen, Black), ORIGIN.w().w()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.sw()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.se().se()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.se().sw()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.e().se()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.e().e()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.e().ne()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.ne()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.nw().ne()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.nw().nw()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.nw().w().nw()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.nw().w().w()),
-            Turn::Move(Black, Piece::new(Ant, Black), ORIGIN.nw().w().sw()),
+            Turn::Move(Piece::new(Spider, Black), ORIGIN.e().ne()),
+            Turn::Move(Piece::new(Spider, Black), ORIGIN.w().w()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.w().w()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.sw()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.se().se()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.se().sw()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.e().se()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.e().e()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.e().ne()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.ne()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().ne()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().nw()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().w()),
+            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().sw()),
         ]);
     }
 
