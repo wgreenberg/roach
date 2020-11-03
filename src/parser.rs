@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::game_state::{Turn, GameState};
+use crate::game_state::Turn;
 use crate::game_state::Player::*;
 use crate::hex::{Hex, ORIGIN};
 use crate::piece::Piece;
@@ -42,6 +42,7 @@ struct Parser;
 
 impl Parser {
     fn new() -> Parser { Parser {} }
+
     fn parse_move_string(&self, input: &str, board: &HashMap<Hex, Piece>) -> Option<Turn> {
         let mut tokens = input.split_whitespace();
         let piece = self.parse_piece_string(tokens.next()?)?;

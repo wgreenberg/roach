@@ -17,6 +17,7 @@ pub struct GameState {
 pub enum TurnError {
     WrongPlayer,
     InvalidMove,
+    GameOver,
 }
 
 impl GameState {
@@ -65,49 +66,59 @@ impl GameState {
     }
 
     fn get_piece_moves(&self, piece: Piece, start: Hex) -> Vec<Turn> {
-        // check if removing this piece breaks the One Hive Rule
+        // setup a version of the board where this piece is gone (i.e. picked up)
         let mut board_without_piece = self.board.clone();
         board_without_piece.remove(&start);
-        let mut on_hive = false;
+        // if moving this piece uncovers something in a stack, move that piece to the board
+        let mut on_hive = false; // remember if we're currently on a stack
         if let Some(stack) = self.stacks.get(&start) {
             if let Some(&under) = stack.last() {
                 on_hive = true;
                 board_without_piece.insert(start, under);
             }
         }
+
+        // check if removing this piece breaks the One Hive Rule
         let pieces_after_pickup = board_without_piece.keys().cloned().collect();
-        let hexes_after_pickup = Hex::get_empty_neighbors(&pieces_after_pickup);
         if !Hex::all_contiguous(&pieces_after_pickup) {
             return vec![];
         }
+
+        // all open hexes to move to
+        let spaces_after_pickup = Hex::get_empty_neighbors(&pieces_after_pickup);
+
         match piece.bug {
             Ant => {
-                start.pathfind(&hexes_after_pickup, &pieces_after_pickup, None).iter()
+                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, None).iter()
                     .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
             Beetle => {
+                // if a beetle's on the hive, it's not restricted by anything except its move
+                // speed; if it's not, consider pieces to be barriers like normal
                 let empty = vec![];
                 let barriers = if on_hive { &empty } else { &pieces_after_pickup };
-                start.pathfind(&hexes_after_pickup, barriers, Some(1)).iter()
+                start.pathfind(&spaces_after_pickup, barriers, Some(1)).iter()
                     .chain(start.pathfind(&pieces_after_pickup, &vec![], Some(1)).iter())
                     .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
             Queen => {
-                start.pathfind(&hexes_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
                     .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
             Spider => {
-                start.pathfind(&hexes_after_pickup, &pieces_after_pickup, Some(3)).iter()
+                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(3)).iter()
                     .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
             Grasshopper => {
                 start.neighbors().iter()
-                    .filter(|direction| self.board.contains_key(direction))
+                    .filter(|direction| self.board.contains_key(direction)) // only hop over adjacent pieces
                     .map(|direction| {
+                        // given a direction to hop, keep looking in that direction until we find
+                        // an open hex
                         let mut vector = direction.sub(start);
                         while self.board.contains_key(&direction.add(vector)) {
                             vector = vector.add(vector);
@@ -147,11 +158,19 @@ impl GameState {
     }
 
     fn get_hex_for_piece(&self, piece: Piece) -> Option<Hex> {
+        // first check the board, then check underneath any stacks
         self.board.iter()
-            .find_map(|(&key, &value)| if value == piece { Some(key) } else { None })
+            .find_map(|(&hex, &board_piece)| if board_piece == piece { Some(hex) } else { None })
+            .or_else(|| self.stacks.iter()
+                .find_map(|(&hex, stack)| if stack.contains(&piece) { Some(hex) } else { None }))
     }
 
     pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
+        match self.status {
+            GameStatus::Win(_) | GameStatus::Draw => return Err(TurnError::GameOver),
+            _ => {},
+        };
+
         if !self.get_valid_moves().contains(&turn) {
             return Err(TurnError::InvalidMove)
         }
@@ -167,18 +186,32 @@ impl GameState {
             },
             Turn::Move(piece, dest) => {
                 let from = self.get_hex_for_piece(piece).unwrap();
-                self.board.remove(&from);
+                assert!(self.board.remove(&from).is_some());
+                // if this piece is uncovering something in a stack, move it onto the board
                 if let Some(stack) = self.stacks.get_mut(&from) {
                     if let Some(under) = stack.pop() {
                         self.board.insert(from, under);
                     }
                 }
+                // if this piece moving somewhere that covers a piece, move that piece into a new
+                // stack
                 if let Some(existing) = self.board.insert(dest, piece) {
                     self.stacks.entry(dest).or_insert(Vec::new()).push(existing);
                 }
             },
         }
         self.turns.push(turn);
+
+        // check for win condition
+        for color in [White, Black].iter() {
+            if let Some(queen) = self.get_hex_for_piece(Piece::new(Queen, *color)) {
+                let n_neighbors = queen.neighbors().iter()
+                    .filter(|hex| self.board.contains_key(hex)).count();
+                if n_neighbors == 6 {
+                    self.status = GameStatus::Win(color.other());
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -252,8 +285,15 @@ mod test {
         let col_start = width/2;
         for i in -row_start..row_start {
             if i % 2 == 0 {
-                for _ in 0..width {
-                    print!(" / \\");
+                for j in -col_start..col_start {
+                    let x = j - (i - (i & 1))/2;
+                    let z = i;
+                    let y = -x - z;
+                    if Hex::new(x, y, z) == ORIGIN {
+                        print!(" /*\\");
+                    } else {
+                        print!(" / \\");
+                    }
                 }
                 if i != 0 {
                     print!(" /");
@@ -269,14 +309,18 @@ mod test {
                 let y = -x - z;
                 let lookup = Hex::new(x, y, z);
                 if let Some(piece) = game.board.get(&lookup) {
-                    let symbol = match piece.bug {
-                        Queen => "q",
-                        Ant => "a",
-                        Spider => "s",
-                        Beetle => "b",
-                        _ => "x",
+                    let color = match piece.owner {
+                        White => "w",
+                        Black => "b",
                     };
-                    print!("| {} ", symbol);
+                    let bug = match piece.bug {
+                        Queen => "Q",
+                        Ant => "A",
+                        Spider => "S",
+                        Beetle => "B",
+                        Grasshopper => "G",
+                    };
+                    print!("|{}{}{}", color, bug, piece.id);
                 } else {
                     print!("|   ");
                 }
@@ -528,6 +572,27 @@ mod test {
         check_move(&mut game, Turn::Place(Piece { bug: Ant, id: 2, owner: White }, ORIGIN.ne().ne()));
         // and move it out
         check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw()));
+    }
+
+    #[test]
+    fn test_win_condition() {
+        let mut game = GameState::new();
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN.e()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.e().ne()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, Black), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.ne().ne()));
+        check_move(&mut game, Turn::Place(Piece { bug: Ant, owner: Black, id: 2 }, ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Place(Piece { bug: Ant, owner: White, id: 2 }, ORIGIN.e().e()));
+        check_move(&mut game, Turn::Move(Piece { bug: Ant, owner: Black, id: 2 }, ORIGIN.ne().nw()));
+        assert_eq!(game.status, GameStatus::Win(Black));
+        dbg!(get_valid_movements(&game));
+        assert_eq!(game.submit_turn(Turn::Move(Piece::new(Beetle, White), ORIGIN.ne())).err(),
+                   Some(TurnError::GameOver));
     }
 
     #[test]
