@@ -203,14 +203,19 @@ impl GameState {
         self.turns.push(turn);
 
         // check for win condition
+        let mut num_wins = 0;
         for color in [White, Black].iter() {
             if let Some(queen) = self.get_hex_for_piece(Piece::new(Queen, *color)) {
                 let n_neighbors = queen.neighbors().iter()
                     .filter(|hex| self.board.contains_key(hex)).count();
                 if n_neighbors == 6 {
                     self.status = GameStatus::Win(color.other());
+                    num_wins += 1;
                 }
             }
+        }
+        if num_wins == 2 {
+            self.status = GameStatus::Draw;
         }
         Ok(())
     }
