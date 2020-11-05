@@ -4,6 +4,7 @@ use crate::hex::{Hex, ORIGIN};
 use self::Player::*;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct GameState {
     pub unplayed_pieces: Vec<Piece>,
     pub board: HashMap<Hex, Piece>,
@@ -11,6 +12,12 @@ pub struct GameState {
     pub turns: Vec<Turn>,
     pub current_player: Player,
     pub status: GameStatus,
+    pub game_type: GameType,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum GameType {
+    Base,
 }
 
 #[derive(PartialEq, Debug)]
@@ -21,7 +28,7 @@ pub enum TurnError {
 }
 
 impl GameState {
-    pub fn new() -> GameState {
+    pub fn new_with_type(game_type: GameType) -> GameState {
         GameState {
             unplayed_pieces: get_initial_pieces(),
             board: HashMap::new(),
@@ -29,7 +36,11 @@ impl GameState {
             turns: Vec::new(),
             current_player: White,
             status: GameStatus::NotStarted,
+            game_type,
         }
+    }
+    pub fn new() -> GameState {
+        GameState::new_with_type(GameType::Base)
     }
 
     pub fn turn_no(&self) -> usize { self.turns.len() + 1 }
