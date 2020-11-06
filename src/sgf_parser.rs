@@ -1,19 +1,21 @@
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::path::Path;
-use crate::game_state::{Turn, GameState};
+use crate::game_state::{Turn, GameState, Player};
 use crate::hex::Hex;
 use crate::piece::Piece;
 use crate::parser::parse_piece_string;
 
 fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
     let file = File::open(path).unwrap();
-    let mut game = GameState::new();
+    // seems like all the test games start w/ white
+    let mut game = GameState::new(Player::White);
     let mut origin: Option<Hex> = None;
     let mut last_turn: Option<Turn> = None;
     for maybe_line in BufReader::new(file).lines() {
         let line = maybe_line.unwrap();
         if line.starts_with("SU[") {
+            // make sure we're playing without expansion pieces (for now)
             if line != "SU[Hive]" {
                 return None
             }

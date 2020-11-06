@@ -64,7 +64,7 @@ pub fn parse_game_string(input: &str) -> ParserResult<GameState> {
     let game_type = parse_game_type(tokens.next().ok_or("empty GameType")?)?;
     let game_status = parse_game_status(tokens.next().ok_or("empty GameState")?)?;
     let turn_no = parse_game_turn(tokens.next().ok_or("empty TurnString")?)?;
-    let mut game = GameState::new_with_type(game_type);
+    let mut game = GameState::new_with_type(White, game_type);
     for token in tokens {
         if let Err(err) = game.submit_turn(parse_move_string(token, &game.board)?) {
             return Err(format!("invalid turn {}: {:?}", token, err).into());

@@ -193,8 +193,8 @@ mod tests {
          *       \ / \ / \ / \ / \ /
          *        |   | s |   | x |
          *         \ / \ / \ / \ / \
-         *                  |   | x |
-         *                   \ / \ /
+         * 's' is start     |   | x |
+         * 'x' is a barrier  \ / \ /
          */
         let map = vec![
             ORIGIN,

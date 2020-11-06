@@ -28,19 +28,19 @@ pub enum TurnError {
 }
 
 impl GameState {
-    pub fn new_with_type(game_type: GameType) -> GameState {
+    pub fn new_with_type(first_player: Player, game_type: GameType) -> GameState {
         GameState {
             unplayed_pieces: get_initial_pieces(),
             board: HashMap::new(),
             stacks: HashMap::new(),
             turns: Vec::new(),
-            current_player: White,
+            current_player: first_player,
             status: GameStatus::NotStarted,
             game_type,
         }
     }
-    pub fn new() -> GameState {
-        GameState::new_with_type(GameType::Base)
+    pub fn new(first_player: Player) -> GameState {
+        GameState::new_with_type(first_player, GameType::Base)
     }
 
     pub fn turn_no(&self) -> usize { self.turns.len() + 1 }
@@ -283,24 +283,24 @@ mod test {
 
     #[test]
     fn test_first_valid_moves() {
-        let new_game = GameState::new();
+        let new_game = GameState::new(Black);
         let all_but_queen = vec![
-            Turn::Place(Piece::new(Ant, White), ORIGIN),
-            Turn::Place(Piece::new(Beetle, White), ORIGIN),
-            Turn::Place(Piece::new(Grasshopper, White), ORIGIN),
-            Turn::Place(Piece::new(Spider, White), ORIGIN),
+            Turn::Place(Piece::new(Ant, Black), ORIGIN),
+            Turn::Place(Piece::new(Beetle, Black), ORIGIN),
+            Turn::Place(Piece::new(Grasshopper, Black), ORIGIN),
+            Turn::Place(Piece::new(Spider, Black), ORIGIN),
         ];
         assert_set_equality(new_game.get_valid_moves(), all_but_queen);
     }
 
     #[test]
     fn test_make_first_move() {
-        let mut new_game = GameState::new();
-        let white_ant_1 = Piece::new(Ant, White);
-        let turn = Turn::Place(white_ant_1, ORIGIN);
+        let mut new_game = GameState::new(Black);
+        let black_ant_1 = Piece::new(Ant, Black);
+        let turn = Turn::Place(black_ant_1, ORIGIN);
         check_move(&mut new_game, turn);
-        assert_eq!(new_game.current_player, Black);
-        assert_eq!(new_game.board.get(&ORIGIN), Some(&white_ant_1));
+        assert_eq!(new_game.current_player, White);
+        assert_eq!(new_game.board.get(&ORIGIN), Some(&black_ant_1));
         assert_eq!(new_game.unplayed_pieces.len(), get_initial_pieces().len() - 1);
         assert_eq!(new_game.status, GameStatus::InProgress);
         assert_eq!(new_game.turns, vec![turn]);
@@ -308,31 +308,31 @@ mod test {
 
     #[test]
     fn test_make_second_move() {
-        let mut game = GameState::new();
-        let white_ant_1 = Piece::new(Ant, White);
-        let turn_1 = Turn::Place(white_ant_1, ORIGIN);
+        let mut game = GameState::new(Black);
+        let black_ant_1 = Piece::new(Ant, Black);
+        let turn_1 = Turn::Place(black_ant_1, ORIGIN);
         check_move(&mut game, turn_1);
 
-        // 6 possible hexes * 4 possible pieces = 24 possible moves for Black
+        // 6 possible hexes * 4 possible pieces = 24 possible moves for White
         assert_eq!(game.get_valid_moves().len(), 24);
-        let black_spider_1 = Piece::new(Spider, Black);
+        let white_spider_1 = Piece::new(Spider, White);
         let west_of_origin = ORIGIN.w();
-        let turn_2 = Turn::Place(black_spider_1, west_of_origin);
+        let turn_2 = Turn::Place(white_spider_1, west_of_origin);
         check_move(&mut game, turn_2);
-        assert_eq!(game.board.get(&ORIGIN), Some(&white_ant_1));
-        assert_eq!(game.board.get(&west_of_origin), Some(&black_spider_1));
+        assert_eq!(game.board.get(&ORIGIN), Some(&black_ant_1));
+        assert_eq!(game.board.get(&west_of_origin), Some(&white_spider_1));
         assert_eq!(game.unplayed_pieces.len(), get_initial_pieces().len() - 2);
     }
 
     #[test]
     fn test_make_third_move() {
-        let mut game = GameState::new();
-        let white_ant_1 = Piece::new(Ant, White);
-        let turn_1 = Turn::Place(white_ant_1, ORIGIN);
+        let mut game = GameState::new(Black);
+        let black_ant_1 = Piece::new(Ant, Black);
+        let turn_1 = Turn::Place(black_ant_1, ORIGIN);
         check_move(&mut game, turn_1);
-        let black_spider_1 = Piece::new(Spider, Black);
+        let white_spider_1 = Piece::new(Spider, White);
         let west_of_origin = ORIGIN.w();
-        let turn_2 = Turn::Place(black_spider_1, west_of_origin);
+        let turn_2 = Turn::Place(white_spider_1, west_of_origin);
         check_move(&mut game, turn_2);
 
         let mut pieces = Vec::new();
@@ -346,171 +346,171 @@ mod test {
         });
         // Only 3 valid hexes remain for placement, and 5 pieces = 15 moves
         assert_set_equality(pieces, vec![
-            Piece { bug: Ant, owner: White, id: 2 },
-            Piece::new(Beetle, White),
-            Piece::new(Grasshopper, White),
-            Piece::new(Queen, White),
-            Piece::new(Spider, White),
+            Piece { bug: Ant, owner: Black, id: 2 },
+            Piece::new(Beetle, Black),
+            Piece::new(Grasshopper, Black),
+            Piece::new(Queen, Black),
+            Piece::new(Spider, Black),
         ]);
         assert_set_equality(hexes, vec![ORIGIN.ne(), ORIGIN.e(), ORIGIN.se()]);
         assert_eq!(game.get_valid_moves().len(), 15);
 
-        let white_ant_2 = Piece { bug: Ant, owner: White, id: 2 };
+        let black_ant_2 = Piece { bug: Ant, owner: Black, id: 2 };
         let east_of_origin = ORIGIN.e();
-        let turn_3 = Turn::Place(white_ant_2, east_of_origin);
+        let turn_3 = Turn::Place(black_ant_2, east_of_origin);
         check_move(&mut game, turn_3);
     }
 
     #[test]
     fn test_queen_placement_rule() {
-        let mut game = GameState::new();
-        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w()));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.e()));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w().w()));
-        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN.e().e()));
-        check_move(&mut game, Turn::Place(Piece::new(Beetle, Black), ORIGIN.w().w().w()));
-        let mut pieces = Vec::new();
-        game.get_valid_moves().iter().for_each(|m| match m {
-            &Turn::Place(piece, _) => pieces.push(piece),
-            _ => panic!("moves are invalid here!"),
-        });
-        assert_set_equality(pieces, vec![Piece::new(Queen, White)]);
-        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne()));
+        let mut game = GameState::new(Black);
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.e()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, Black), ORIGIN.e().e()));
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN.w().w().w()));
         let mut pieces = Vec::new();
         game.get_valid_moves().iter().for_each(|m| match m {
             &Turn::Place(piece, _) => pieces.push(piece),
             _ => panic!("moves are invalid here!"),
         });
         assert_set_equality(pieces, vec![Piece::new(Queen, Black)]);
-        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne()));
+        let mut pieces = Vec::new();
+        game.get_valid_moves().iter().for_each(|m| match m {
+            &Turn::Place(piece, _) => pieces.push(piece),
+            _ => panic!("moves are invalid here!"),
+        });
+        assert_set_equality(pieces, vec![Piece::new(Queen, White)]);
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.w().nw()));
     }
 
     #[test]
     fn test_simple_movement() {
-        let mut game = GameState::new();
+        let mut game = GameState::new(Black);
         // bS - bA - wA - wQ
-        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.e()));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.e()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.w().w()));
         assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Queen, White), ORIGIN.ne()),
-            Turn::Move(Piece::new(Queen, White), ORIGIN.se()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.ne()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.se()),
         ]);
-        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.ne()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, Black), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.w().nw()));
         assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Queen, White), ORIGIN.nw()),
-            Turn::Move(Piece::new(Queen, White), ORIGIN.e()),
-        ]);
-        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.e()));
-        assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Spider, Black), ORIGIN.w().nw().ne()),
-            Turn::Move(Piece::new(Spider, Black), ORIGIN.se()),
             Turn::Move(Piece::new(Queen, Black), ORIGIN.nw()),
-            Turn::Move(Piece::new(Queen, Black), ORIGIN.w().w().nw()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.e()),
         ]);
-        check_move(&mut game, Turn::Move(Piece::new(Spider, Black), ORIGIN.se()));
-        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.e()));
         assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Spider, Black), ORIGIN.e().ne()),
-            Turn::Move(Piece::new(Spider, Black), ORIGIN.w().w()),
-            Turn::Move(Piece::new(Queen, Black), ORIGIN.nw().nw()),
-            Turn::Move(Piece::new(Queen, Black), ORIGIN.w().w()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.sw()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.se().se()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.se().sw()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.e().se()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.e().e()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.e().ne()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.ne()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().ne()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().nw()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().nw()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().w()),
-            Turn::Move(Piece::new(Ant, Black), ORIGIN.nw().w().sw()),
+            Turn::Move(Piece::new(Spider, White), ORIGIN.w().nw().ne()),
+            Turn::Move(Piece::new(Spider, White), ORIGIN.se()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.nw()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.w().w().nw()),
+        ]);
+        check_move(&mut game, Turn::Move(Piece::new(Spider, White), ORIGIN.se()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, Black), ORIGIN.nw()));
+        assert_set_equality(get_valid_movements(&game), vec![
+            Turn::Move(Piece::new(Spider, White), ORIGIN.e().ne()),
+            Turn::Move(Piece::new(Spider, White), ORIGIN.w().w()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Queen, White), ORIGIN.w().w()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.sw()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.se().se()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.se().sw()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.e().se()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.e().e()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.e().ne()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.ne()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.nw().ne()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.nw().w().nw()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.nw().w().w()),
+            Turn::Move(Piece::new(Ant, White), ORIGIN.nw().w().sw()),
         ]);
     }
 
     #[test]
     fn test_grasshoppers() {
-        let mut game = GameState::new();
-        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne()));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w().nw()));
-        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().nw().w()));
+        let mut game = GameState::new(Black);
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, Black), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, Black), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.w().nw().w()));
         assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Queen, White), ORIGIN.ne()),
-            Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()),
-            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.nw().nw()),
-            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.w().w()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.ne()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, Black), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, Black), ORIGIN.w().w()),
         ]);
-        check_move(&mut game, Turn::Move(Piece::new(Grasshopper, White), ORIGIN.w().w()));
-        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, Black), ORIGIN.w().w().nw().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Grasshopper, Black), ORIGIN.w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN.w().w().nw().nw()));
         assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Queen, White), ORIGIN),
-            Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()),
-            Turn::Move(Piece::new(Grasshopper, White), ORIGIN),
-            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.nw().nw()),
-            Turn::Move(Piece::new(Grasshopper, White), ORIGIN.w().w().nw().nw().nw()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, Black), ORIGIN),
+            Turn::Move(Piece::new(Grasshopper, Black), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Grasshopper, Black), ORIGIN.w().w().nw().nw().nw()),
         ]);
     }
 
     #[test]
     fn test_beetles() {
-        let mut game = GameState::new();
-        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne()));
-        check_move(&mut game, Turn::Place(Piece::new(Beetle, Black), ORIGIN.w().nw()));
-        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().w()));
+        let mut game = GameState::new(Black);
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, Black), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, Black), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.w().w()));
         assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Queen, White), ORIGIN.ne()),
-            Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.ne()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.sw()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.w()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.nw()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.ne()),
+            Turn::Move(Piece::new(Queen, Black), ORIGIN.nw().nw()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.ne()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.w()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.nw()),
         ]);
-        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.w()));
-        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, Black)]));
-        assert_eq!(game.board.get(&ORIGIN.w()), Some(&Piece::new(Beetle, White)));
         check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.w()));
-        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, Black), Piece::new(Beetle, White)]));
+        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, White)]));
         assert_eq!(game.board.get(&ORIGIN.w()), Some(&Piece::new(Beetle, Black)));
-        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN));
-        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN));
-        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, Black)]));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.w()));
+        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, White), Piece::new(Beetle, Black)]));
         assert_eq!(game.board.get(&ORIGIN.w()), Some(&Piece::new(Beetle, White)));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, Black), ORIGIN));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN));
+        assert_eq!(game.stacks.get(&ORIGIN.w()), Some(&vec![Piece::new(Spider, White)]));
+        assert_eq!(game.board.get(&ORIGIN.w()), Some(&Piece::new(Beetle, Black)));
         assert_set_equality(game.get_valid_moves(), vec![
-            Turn::Move(Piece::new(Beetle, White), ORIGIN),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.nw()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.w().nw()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.w().w()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.w().sw()),
-            Turn::Move(Piece::new(Beetle, White), ORIGIN.sw()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.nw()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.w().nw()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.w().w()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.w().sw()),
+            Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw()),
         ]);
 
         // complete a circle to test placing beetles in holes
-        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.sw()));
-        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.w()));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.e()));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w().nw()));
-        check_move(&mut game, Turn::Move(Piece::new(Ant, White), ORIGIN.sw().sw()));
-        check_move(&mut game, Turn::Move(Piece::new(Ant, Black), ORIGIN.nw()));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.sw().sw().w()));
-        check_move(&mut game, Turn::Move(Piece::new(Ant, Black), ORIGIN.sw().w().w()));
-        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN.ne()));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw()));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.e()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, Black), ORIGIN.sw().sw()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, White), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.sw().sw().w()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, White), ORIGIN.sw().w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, Black), ORIGIN.ne()));
 
         // finally, move the beetle into the center of the hole
-        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw().w()));
-        check_move(&mut game, Turn::Place(Piece { bug: Ant, id: 2, owner: White }, ORIGIN.ne().ne()));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.sw().w()));
+        check_move(&mut game, Turn::Place(Piece { bug: Ant, id: 2, owner: Black }, ORIGIN.ne().ne()));
         // and move it out
-        check_move(&mut game, Turn::Move(Piece::new(Beetle, Black), ORIGIN.sw()));
+        check_move(&mut game, Turn::Move(Piece::new(Beetle, White), ORIGIN.sw()));
     }
 
     #[test]
@@ -531,44 +531,44 @@ mod test {
          * here, although hexes 1 and 3 are "adjacent" on the board, wS1 must cross through
          * 2 before hitting 3.
          */
-        let mut game = GameState::new();
-        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN));
-        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, Black), ORIGIN.ne()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.se()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne().e()));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.se().se()));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.ne().nw()));
+        let mut game = GameState::new(Black);
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, Black), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.se()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne().e()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.se().se()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.ne().nw()));
         assert_set_equality(get_valid_movements(&game), vec![
-            Turn::Move(Piece::new(Spider, White), ORIGIN.ne().e().se()),
-            Turn::Move(Piece::new(Spider, White), ORIGIN.w()),
+            Turn::Move(Piece::new(Spider, Black), ORIGIN.ne().e().se()),
+            Turn::Move(Piece::new(Spider, Black), ORIGIN.w()),
         ]);
     }
 
     #[test]
     fn test_win_condition() {
-        let mut game = GameState::new();
-        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.w()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.ne()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.w().w()));
-        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, White), ORIGIN.e()));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.w().nw()));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.e().ne()));
-        check_move(&mut game, Turn::Move(Piece::new(Ant, Black), ORIGIN.nw()));
-        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.ne().ne()));
-        check_move(&mut game, Turn::Place(Piece { bug: Ant, owner: Black, id: 2 }, ORIGIN.w().nw()));
-        check_move(&mut game, Turn::Place(Piece { bug: Ant, owner: White, id: 2 }, ORIGIN.e().e()));
-        check_move(&mut game, Turn::Move(Piece { bug: Ant, owner: Black, id: 2 }, ORIGIN.ne().nw()));
-        assert_eq!(game.status, GameStatus::Win(Black));
-        assert_eq!(game.submit_turn(Turn::Move(Piece::new(Beetle, White), ORIGIN.ne())).err(),
+        let mut game = GameState::new(Black);
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, Black), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.w().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, Black), ORIGIN.e()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, White), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.e().ne()));
+        check_move(&mut game, Turn::Move(Piece::new(Ant, White), ORIGIN.nw()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.ne().ne()));
+        check_move(&mut game, Turn::Place(Piece { bug: Ant, owner: White, id: 2 }, ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Place(Piece { bug: Ant, owner: Black, id: 2 }, ORIGIN.e().e()));
+        check_move(&mut game, Turn::Move(Piece { bug: Ant, owner: White, id: 2 }, ORIGIN.ne().nw()));
+        assert_eq!(game.status, GameStatus::Win(White));
+        assert_eq!(game.submit_turn(Turn::Move(Piece::new(Beetle, Black), ORIGIN.ne())).err(),
                    Some(TurnError::GameOver));
     }
 
     #[test]
     fn test_make_invalid_first_move() {
-        let mut new_game = GameState::new();
-        let white_queen = Piece::new(Queen, White);
-        let turn = Turn::Place(white_queen, ORIGIN);
+        let mut new_game = GameState::new(Black);
+        let black_queen = Piece::new(Queen, Black);
+        let turn = Turn::Place(black_queen, ORIGIN);
         let result = new_game.submit_turn(turn);
         assert_eq!(result.err(), Some(TurnError::InvalidMove));
     }
