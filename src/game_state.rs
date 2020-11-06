@@ -593,6 +593,37 @@ mod test {
     }
 
     #[test]
+    fn test_gap_jumps() {
+        /* in a case where there's a curve of pieces w/ a wide gap, hex neighbors that aren't
+         * adjacent may appear that way. e.g.
+         *
+         *     / \ / \ / \
+         *    |bG1|bQ1| 4 |
+         *   / \ / \ / \ /
+         *  |wB1| 2 | 3 |
+         *   \ / \ / \ /
+         *    |wQ1| 1 |
+         *     \ / \ /
+         *      |wS1|
+         *       \ /
+         *
+         * here, although hexes 1 and 3 are "adjacent" on the board, wS1 must cross through
+         * 2 before hitting 3.
+         */
+        let mut game = GameState::new();
+        check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Grasshopper, Black), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.se()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne().e()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.se().se()));
+        check_move(&mut game, Turn::Place(Piece::new(Ant, Black), ORIGIN.ne().nw()));
+        assert_set_equality(get_valid_movements(&game), vec![
+            Turn::Move(Piece::new(Spider, White), ORIGIN.ne().e().se()),
+            Turn::Move(Piece::new(Spider, White), ORIGIN.w()),
+        ]);
+    }
+
+    #[test]
     fn test_win_condition() {
         let mut game = GameState::new();
         check_move(&mut game, Turn::Place(Piece::new(Beetle, White), ORIGIN));
