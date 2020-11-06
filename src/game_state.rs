@@ -126,15 +126,16 @@ impl GameState {
             },
             Grasshopper => {
                 start.neighbors().iter()
-                    .filter(|direction| self.board.contains_key(direction)) // only hop over adjacent pieces
-                    .map(|direction| {
+                    .filter(|neighbor| self.board.contains_key(neighbor)) // only hop over adjacent pieces
+                    .map(|neighbor| {
                         // given a direction to hop, keep looking in that direction until we find
                         // an open hex
-                        let mut vector = direction.sub(start);
-                        while self.board.contains_key(&direction.add(vector)) {
-                            vector = vector.add(vector);
+                        let direction = neighbor.sub(start);
+                        let mut travel = direction;
+                        while self.board.contains_key(&neighbor.add(travel)) {
+                            travel = travel.add(direction);
                         }
-                        Turn::Move(piece, direction.add(vector))
+                        Turn::Move(piece, neighbor.add(travel))
                     })
                     .collect()
             },
