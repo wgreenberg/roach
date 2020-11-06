@@ -55,7 +55,7 @@ impl GameState {
 
         // start with the set of piece placements
         moves.extend(self.get_placeable_pieces().iter()
-            .flat_map(|p| open_hexes.iter()
+            .flat_map(|piece| open_hexes.iter()
                 .filter(|&&hex| {
                     // If past turn 2, filter out any hexes adjacent to enemy pieces
                     if self.turn_no() > 2 {
@@ -65,13 +65,13 @@ impl GameState {
                         !is_adjacent_to_enemies
                     } else { true }
                 })
-                .map(move |hex| Turn::Place(p.clone(), hex.clone()))));
+                .map(move |hex| Turn::Place(piece.clone(), hex.clone()))));
 
         // if this player's queen is in play, add in the set of possible piece moves
         if !self.unplayed_pieces.contains(&Piece::new(Queen, self.current_player)) {
             moves.extend(self.board.iter()
-                .filter(|(_, p)| p.owner == self.current_player) // once the pillbug is implemented, this has gotta go
-                .flat_map(|(&start, &p)| self.get_piece_moves(p, start)));
+                .filter(|(_, piece)| piece.owner == self.current_player) // once the pillbug is implemented, this has gotta go
+                .flat_map(|(&start, &piece)| self.get_piece_moves(piece, start)));
         }
 
         return moves;
@@ -147,18 +147,18 @@ impl GameState {
 
         let mut lowest_ids: HashMap<Bug, u8> = HashMap::new();
         self.unplayed_pieces.iter()
-            .filter(|p| p.owner == self.current_player)
-            .for_each(|p| {
-                let id = lowest_ids.entry(p.bug).or_insert(p.id);
-                if p.id < *id {
-                    *id = p.id;
+            .filter(|piece| piece.owner == self.current_player)
+            .for_each(|piece| {
+                let id = lowest_ids.entry(piece.bug).or_insert(piece.id);
+                if piece.id < *id {
+                    *id = piece.id;
                 }
             });
 
         self.unplayed_pieces.iter()
-            .filter(|p| self.turn_no() > 2 || p.bug != Queen) // disallow queen plays on turn 1
-            .filter(|p| Some(&p.id) == lowest_ids.get(&p.bug))
-            .filter(|p| p.owner == self.current_player)
+            .filter(|piece| self.turn_no() > 2 || piece.bug != Queen) // disallow queen plays on turn 1
+            .filter(|piece| Some(&piece.id) == lowest_ids.get(&piece.bug))
+            .filter(|piece| piece.owner == self.current_player)
             .cloned()
             .collect()
     }
