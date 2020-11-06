@@ -278,87 +278,7 @@ pub enum Turn  {
 #[cfg(test)]
 mod test {
     use super::*;
-    use test_utils::assert_set_equality;
-
-    fn check_move(game: &mut GameState, turn: Turn) {
-        assert!(game.submit_turn(turn).is_ok());
-    }
-
-    fn get_valid_movements(game: &GameState) -> Vec<Turn> {
-        game.get_valid_moves().iter().filter(|turn| match turn {
-            Turn::Place(_, _) => false,
-            Turn::Move(_, _) => true,
-        }).cloned().collect()
-    }
-
-    fn draw_board(game: &GameState) {
-        use std::cmp;
-        let pieces: Vec<(&Hex, &Piece)> = game.board.iter().collect();
-        let furthest_dist = pieces.iter().fold(0, |max, (hex, _)| {
-            cmp::max(max, ORIGIN.dist(**hex))
-        });
-        let height = furthest_dist * 2;
-        let width = furthest_dist * 2;
-        let row_start = height/2;
-        let col_start = width/2;
-        for i in -row_start..row_start {
-            if i % 2 == 0 {
-                for j in -col_start..col_start {
-                    let x = j - (i - (i & 1))/2;
-                    let z = i;
-                    let y = -x - z;
-                    if Hex::new(x, y, z) == ORIGIN {
-                        print!(" /*\\");
-                    } else {
-                        print!(" / \\");
-                    }
-                }
-                if i != 0 {
-                    print!(" /");
-                }
-                print!("\n");
-            }
-            if i % 2 != 0 {
-                print!("  ");
-            }
-            for j in -col_start..col_start {
-                let x = j - (i - (i & 1))/2;
-                let z = i;
-                let y = -x - z;
-                let lookup = Hex::new(x, y, z);
-                if let Some(piece) = game.board.get(&lookup) {
-                    let color = match piece.owner {
-                        White => "w",
-                        Black => "b",
-                    };
-                    let bug = match piece.bug {
-                        Queen => "Q",
-                        Ant => "A",
-                        Spider => "S",
-                        Beetle => "B",
-                        Grasshopper => "G",
-                    };
-                    print!("|{}{}{}", color, bug, piece.id);
-                } else {
-                    print!("|   ");
-                }
-            }
-            print!("|");
-            print!("\n");
-            if i == row_start - 1 && i % 2 != 0 {
-                print!("  ");
-            }
-            if i % 2 == 0 || i == row_start - 1 {
-                for _ in 0..width {
-                    print!(" \\ /");
-                }
-                if i != row_start - 1 {
-                    print!(" \\");
-                }
-                print!("\n");
-            }
-        }
-    }
+    use crate::test_utils::{assert_set_equality, check_move, get_valid_movements};
 
     #[test]
     fn test_first_valid_moves() {
@@ -639,7 +559,6 @@ mod test {
         check_move(&mut game, Turn::Place(Piece { bug: Ant, owner: White, id: 2 }, ORIGIN.e().e()));
         check_move(&mut game, Turn::Move(Piece { bug: Ant, owner: Black, id: 2 }, ORIGIN.ne().nw()));
         assert_eq!(game.status, GameStatus::Win(Black));
-        dbg!(get_valid_movements(&game));
         assert_eq!(game.submit_turn(Turn::Move(Piece::new(Beetle, White), ORIGIN.ne())).err(),
                    Some(TurnError::GameOver));
     }

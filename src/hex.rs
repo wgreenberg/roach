@@ -131,7 +131,7 @@ fn dfs(hex: Hex, hexes: &Vec<Hex>, visited: &mut HashSet<Hex>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_utils::assert_set_equality;
+    use crate::test_utils::assert_set_equality;
 
     #[test]
     fn test_neighbors() {
