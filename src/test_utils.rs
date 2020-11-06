@@ -60,6 +60,9 @@ pub fn draw_board(game: &GameState) {
                     Spider => "S",
                     Beetle => "B",
                     Grasshopper => "G",
+                    Pillbug => "P",
+                    Ladybug => "L",
+                    Mosquito => "M",
                 };
                 print!("|{}{}{}", color, bug, piece.id);
             } else {

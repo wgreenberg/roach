@@ -5,10 +5,10 @@ pub enum Bug {
     Ant,
     Beetle,
     Grasshopper,
-    //Ladybug,
-    //Mosquito,
+    Ladybug,
+    Mosquito,
     Queen,
-    //Pillbug,
+    Pillbug,
     Spider,
 }
 

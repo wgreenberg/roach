@@ -15,9 +15,10 @@ pub struct GameState {
     pub game_type: GameType,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum GameType {
     Base,
+    PLM(bool, bool, bool),
 }
 
 #[derive(PartialEq, Debug)]
@@ -30,7 +31,7 @@ pub enum TurnError {
 impl GameState {
     pub fn new_with_type(first_player: Player, game_type: GameType) -> GameState {
         GameState {
-            unplayed_pieces: get_initial_pieces(),
+            unplayed_pieces: get_initial_pieces(game_type),
             board: HashMap::new(),
             stacks: HashMap::new(),
             turns: Vec::new(),
@@ -59,7 +60,7 @@ impl GameState {
                     // If past turn 2, filter out any hexes adjacent to enemy pieces
                     if self.turn_no() > 2 {
                         let is_adjacent_to_enemies = self.board.iter()
-                            .filter(|(_, bp)| bp.owner != self.current_player)
+                            .filter(|(_, board_piece)| board_piece.owner != self.current_player)
                             .fold(false, |acc, (enemy_hex, _)| acc || enemy_hex.is_adj(hex));
                         !is_adjacent_to_enemies
                     } else { true }
@@ -99,11 +100,9 @@ impl GameState {
         let spaces_after_pickup = Hex::get_empty_neighbors(&pieces_after_pickup);
 
         match piece.bug {
-            Ant => {
-                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, None).iter()
-                    .map(|&end| Turn::Move(piece, end))
-                    .collect()
-            },
+            Ant => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, None).iter()
+                .map(|&end| Turn::Move(piece, end))
+                .collect(),
             Beetle => {
                 // if a beetle's on the hive, it's not restricted by anything except its move
                 // speed; if it's not, consider pieces to be barriers like normal
@@ -114,31 +113,26 @@ impl GameState {
                     .map(|&end| Turn::Move(piece, end))
                     .collect()
             },
-            Queen => {
-                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
-                    .map(|&end| Turn::Move(piece, end))
-                    .collect()
-            },
-            Spider => {
-                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(3)).iter()
-                    .map(|&end| Turn::Move(piece, end))
-                    .collect()
-            },
-            Grasshopper => {
-                start.neighbors().iter()
-                    .filter(|neighbor| self.board.contains_key(neighbor)) // only hop over adjacent pieces
-                    .map(|neighbor| {
-                        // given a direction to hop, keep looking in that direction until we find
-                        // an open hex
-                        let direction = neighbor.sub(start);
-                        let mut travel = direction;
-                        while self.board.contains_key(&neighbor.add(travel)) {
-                            travel = travel.add(direction);
-                        }
-                        Turn::Move(piece, neighbor.add(travel))
-                    })
-                    .collect()
-            },
+            Queen => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                .map(|&end| Turn::Move(piece, end))
+                .collect(),
+            Spider => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(3)).iter()
+                .map(|&end| Turn::Move(piece, end))
+                .collect(),
+            Grasshopper => start.neighbors().iter()
+                .filter(|neighbor| self.board.contains_key(neighbor)) // only hop over adjacent pieces
+                .map(|neighbor| {
+                    // given a direction to hop, keep looking in that direction until we find
+                    // an open hex
+                    let direction = neighbor.sub(start);
+                    let mut travel = direction;
+                    while self.board.contains_key(&neighbor.add(travel)) {
+                        travel = travel.add(direction);
+                    }
+                    Turn::Move(piece, neighbor.add(travel))
+                })
+                .collect(),
+            _ => vec![],
         }
     }
 
@@ -234,14 +228,19 @@ impl GameState {
     }
 }
 
-fn get_initial_pieces() -> Vec<Piece> {
+fn get_initial_pieces(game_type: GameType) -> Vec<Piece> {
     let mut pieces = Vec::new();
     for &player in [White, Black].iter() {
-        pieces.append(&mut Piece::new_set(Ant, player, 3));
-        pieces.append(&mut Piece::new_set(Grasshopper, player, 3));
-        pieces.append(&mut Piece::new_set(Beetle, player, 2));
-        pieces.append(&mut Piece::new_set(Spider, player, 2));
+        pieces.extend(Piece::new_set(Ant, player, 3));
+        pieces.extend(Piece::new_set(Grasshopper, player, 3));
+        pieces.extend(Piece::new_set(Beetle, player, 2));
+        pieces.extend(Piece::new_set(Spider, player, 2));
         pieces.push(Piece::new(Queen, player));
+        if let GameType::PLM(pillbug, ladybug, mosquito) = game_type {
+            if pillbug { pieces.push(Piece::new(Pillbug, player)); }
+            if ladybug { pieces.push(Piece::new(Ladybug, player)); }
+            if mosquito { pieces.push(Piece::new(Mosquito, player)); }
+        }
     }
     pieces
 }
@@ -301,7 +300,7 @@ mod test {
         check_move(&mut new_game, turn);
         assert_eq!(new_game.current_player, White);
         assert_eq!(new_game.board.get(&ORIGIN), Some(&black_ant_1));
-        assert_eq!(new_game.unplayed_pieces.len(), get_initial_pieces().len() - 1);
+        assert_eq!(new_game.unplayed_pieces.len(), get_initial_pieces(GameType::Base).len() - 1);
         assert_eq!(new_game.status, GameStatus::InProgress);
         assert_eq!(new_game.turns, vec![turn]);
     }
@@ -321,7 +320,7 @@ mod test {
         check_move(&mut game, turn_2);
         assert_eq!(game.board.get(&ORIGIN), Some(&black_ant_1));
         assert_eq!(game.board.get(&west_of_origin), Some(&white_spider_1));
-        assert_eq!(game.unplayed_pieces.len(), get_initial_pieces().len() - 2);
+        assert_eq!(game.unplayed_pieces.len(), get_initial_pieces(GameType::Base).len() - 2);
     }
 
     #[test]
@@ -562,6 +561,37 @@ mod test {
         assert_eq!(game.status, GameStatus::Win(White));
         assert_eq!(game.submit_turn(Turn::Move(Piece::new(Beetle, Black), ORIGIN.ne())).err(),
                    Some(TurnError::GameOver));
+    }
+
+    fn count_pieces(game: &GameState, player: Player) -> Vec<(Bug, usize)> {
+        let mut counts = HashMap::new();
+        game.unplayed_pieces.iter()
+            .for_each(|piece| { if piece.owner == player { *counts.entry(piece.bug).or_insert(0) += 1 }});
+        counts.iter().map(|(&a, &b)| (a, b)).collect()
+    }
+
+    #[test]
+    fn test_initial_pieces() {
+        assert_set_equality(count_pieces(&GameState::new(Black), Black), vec![
+            (Queen, 1), (Beetle, 2), (Spider, 2), (Grasshopper, 3), (Ant, 3),
+        ]);
+        let p = GameState::new_with_type(Black, GameType::PLM(true, false, false));
+        assert_set_equality(count_pieces(&p, Black), vec![
+            (Queen, 1), (Beetle, 2), (Spider, 2), (Grasshopper, 3), (Ant, 3), (Pillbug, 1),
+        ]);
+        let l = GameState::new_with_type(Black, GameType::PLM(false, true, false));
+        assert_set_equality(count_pieces(&l, Black), vec![
+            (Queen, 1), (Beetle, 2), (Spider, 2), (Grasshopper, 3), (Ant, 3), (Ladybug, 1),
+        ]);
+        let m = GameState::new_with_type(Black, GameType::PLM(false, false, true));
+        assert_set_equality(count_pieces(&m, Black), vec![
+            (Queen, 1), (Beetle, 2), (Spider, 2), (Grasshopper, 3), (Ant, 3), (Mosquito, 1),
+        ]);
+        let plm = GameState::new_with_type(Black, GameType::PLM(true, true, true));
+        assert_set_equality(count_pieces(&plm, Black), vec![
+            (Queen, 1), (Beetle, 2), (Spider, 2), (Grasshopper, 3), (Ant, 3),
+            (Pillbug, 1), (Ladybug, 1), (Mosquito, 1),
+        ]);
     }
 
     #[test]
