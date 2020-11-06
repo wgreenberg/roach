@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{BufReader, BufRead};
+use std::path::Path;
 use crate::game_state::{Turn, GameState};
 use crate::game_state::Player::*;
 use crate::hex::{Hex, ORIGIN};
@@ -7,20 +8,29 @@ use crate::piece::Piece;
 use crate::piece::Bug::*;
 use crate::parser::parse_piece_string;
 
-fn read_sgf_file(path: &str) -> GameState {
+fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
     let file = File::open(path).unwrap();
     let mut game = GameState::new();
     let mut origin: Option<Hex> = None;
+    let mut last_turn: Option<Turn> = None;
     for maybe_line in BufReader::new(file).lines() {
         let line = maybe_line.unwrap();
+        if line.starts_with("SU[") {
+            if line != "SU[Hive]" {
+                return None
+            }
+        }
         if line.starts_with("; ") {
-            if let Some(turn) = parse_turn(&line, &game.unplayed_pieces, &mut origin) {
-                dbg!(&turn);
-                assert!(game.submit_turn(turn).is_ok());
+            if line.contains("move") || line.contains("dropb") || line.contains("pass") {
+                last_turn = parse_turn(&line, &game.unplayed_pieces, &mut origin);
+            } else if line.contains("resign") {
+                return Some(game);
+            } else if line.contains("done]") {
+                assert_eq!(game.submit_turn(last_turn.unwrap()), Ok(()));
             }
         }
     }
-    game
+    Some(game)
 }
 
 fn parse_turn(input: &str, unplayed_pieces: &Vec<Piece>, origin: &mut Option<Hex>) -> Option<Turn> {
@@ -34,8 +44,10 @@ fn parse_turn(input: &str, unplayed_pieces: &Vec<Piece>, origin: &mut Option<Hex
         }
         let piece = parse_piece_string(tokens.next().unwrap()).unwrap();
         let axial_col = tokens.next().unwrap();
-        let axial_row = tokens.next().unwrap().to_string().parse::<i64>().unwrap();
+        let axial_row = tokens.next().unwrap().parse::<i64>().unwrap();
         let dest = axial_to_hex(axial_col, axial_row);
+        // wherever the first hex is in absolute space, normalize it so everything's centered
+        // around (0, 0, 0)
         if origin.is_none() {
             *origin = Some(dest);
         }
@@ -44,6 +56,8 @@ fn parse_turn(input: &str, unplayed_pieces: &Vec<Piece>, origin: &mut Option<Hex
         } else {
             Some(Turn::Move(piece, dest.sub(origin.unwrap())))
         }
+    } else if input.contains("pass") {
+        Some(Turn::Pass)
     } else {
         None
     }
@@ -129,7 +143,10 @@ mod tests {
         }
     }
     #[test]
-    fn test() {
-        let _game = read_sgf_file("./test_data/HV-Dumbot0-Babamots-2020-03-29-0618.sgf");
+    fn test_sgf_games() {
+        std::fs::read_dir("./test_data")
+            .expect("failed to open dir")
+            .flat_map(|entry| entry)
+            .for_each(|entry| { read_sgf_file(entry.path()); });
     }
 }
