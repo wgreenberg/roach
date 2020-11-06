@@ -182,7 +182,7 @@ impl GameState {
             _ => {},
         };
 
-        if !self.get_valid_moves().contains(&turn) {
+        if turn != Turn::Pass && !self.get_valid_moves().contains(&turn) {
             return Err(TurnError::InvalidMove)
         }
 
@@ -210,6 +210,7 @@ impl GameState {
                     self.stacks.entry(dest).or_insert(Vec::new()).push(existing);
                 }
             },
+            Turn::Pass => {},
         }
         self.turns.push(turn);
 
@@ -271,6 +272,7 @@ pub enum GameStatus {
 pub enum Turn  {
     Place(Piece, Hex),
     Move(Piece, Hex),
+    Pass,
 }
 
 #[cfg(test)]
