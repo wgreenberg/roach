@@ -69,6 +69,15 @@ impl Hex {
         visited.len() == hexes.len()
     }
 
+    /* A.get_pincers(B) == Some((p1, p2))
+     *       / \
+     *      | p1|
+     *     / \ / \
+     *    | A | B |
+     *     \ / \ /
+     *      | p2|
+     *       \ /
+     */
     pub fn get_pincers(&self, other: Hex) -> Option<(Hex, Hex)> {
         if *self == other { return None; }
         let our_neighbors: HashSet<Hex> = HashSet::from_iter(self.neighbors());
