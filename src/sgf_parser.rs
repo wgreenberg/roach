@@ -10,16 +10,15 @@ use crate::parser::parse_piece_string;
 pub fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
     let mut origin: Option<Hex> = None;
     let mut last_turn: Option<Turn> = None;
-    let game_type_line = BufReader::new(File::open(&path).unwrap())
-        .lines().find(|maybe_line| match maybe_line {
-            Ok(line) => line.starts_with("SU["),
-            _ => false,
-        }).unwrap().unwrap();
+    let (actions, headers): (Vec<String>, Vec<String>) = BufReader::new(File::open(&path).unwrap())
+        .lines()
+        .flat_map(|l| l)
+        .partition(|line| line.starts_with("; "));
+    let game_type_line = headers.iter().find(|line| line.starts_with("SU[")).unwrap();
     let game_type = parse_game_type(&game_type_line).unwrap();
     // seems like all the test games start w/ white
     let mut game = GameState::new_with_type(Player::White, game_type);
-    for maybe_line in BufReader::new(File::open(&path).unwrap()).lines() {
-        let line = maybe_line.unwrap();
+    for line in actions {
         if line.starts_with("; ") {
             if line.contains("move") || line.contains("dropb") || line.contains("pass") {
                 if let Some(turn) = parse_turn(&line, &game.board, &mut origin) {
