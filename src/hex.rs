@@ -92,25 +92,24 @@ impl Hex {
     pub fn pathfind(&self, hexes: &Vec<Hex>, barriers: &Vec<Hex>, dist: Option<usize>) -> Vec<Hex> {
         if dist == Some(0) { return vec![*self]; }
         let mut visited: HashSet<Hex> = HashSet::new();
-        let terminal_hexes = dfs_with_gate_checks(*self, hexes, barriers, &mut visited, 0, dist);
-        match dist {
-            Some(_) => terminal_hexes,
-            None => visited.iter()
-                .filter(|&&h| h != *self)
-                .cloned().collect(),
-        }
+        dfs_with_gate_checks(*self, hexes, barriers, &mut visited, 0, dist).iter()
+            .filter(|&h| h != self)
+            .cloned().collect()
     }
 }
 
 fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited: &mut HashSet<Hex>, dist: usize, max_dist: Option<usize>) -> Vec<Hex> {
-    visited.insert(hex);
     if let Some(max) = max_dist {
         if dist == max {
             return vec![hex];
         }
     }
 
-    let mut result = Vec::new();
+    visited.insert(hex);
+    let mut result = match max_dist {
+        Some(_) => Vec::new(),
+        None => vec![hex],
+    };
     for neighbor in hex.neighbors() {
         if hexes.contains(&neighbor) && !visited.contains(&neighbor) {
             if barriers.len() > 0 {
@@ -122,12 +121,8 @@ fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited
                     _ => {},
                 }
             }
-            if max_dist == None {
-                result.extend(dfs_with_gate_checks(neighbor, hexes, barriers, visited, dist + 1, max_dist));
-            } else {
-                let mut c = visited.clone();
-                result.extend(dfs_with_gate_checks(neighbor, hexes, barriers, &mut c, dist + 1, max_dist));
-            }
+            let mut v = visited.clone();
+            result.extend(dfs_with_gate_checks(neighbor, hexes, barriers, &mut v, dist + 1, max_dist));
         }
     }
     return result;
