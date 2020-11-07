@@ -125,7 +125,7 @@ pub fn parse_move_string(input: &str, board: &HashMap<Hex, Piece>) -> ParserResu
         };
         let target_hex = board.iter()
             .find_map(|(&key, &value)| if value == dest_piece { Some(key) } else { None })
-            .ok_or("target piece not present on board")?;
+            .ok_or(format!("target piece not present on board: {:?}", piece))?;
         let dest_hex = match (side, dir) {
             ("east", "-") => target_hex.e(),
             ("east", "/") => target_hex.ne(),

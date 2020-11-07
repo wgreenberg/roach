@@ -113,8 +113,8 @@ fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited
     let mut result = Vec::new();
     for neighbor in hex.neighbors() {
         if hexes.contains(&neighbor) && !visited.contains(&neighbor) {
-            let (pincer_a, pincer_b) = hex.get_pincers(neighbor).unwrap();
             if barriers.len() > 0 {
+                let (pincer_a, pincer_b) = hex.get_pincers(neighbor).unwrap();
                 // the move is invalid if both pincers are present (too small a gap to slide in),
                 // or if neither are present (jumping a gap)
                 match (barriers.contains(&pincer_a), barriers.contains(&pincer_b)) {
@@ -122,7 +122,12 @@ fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited
                     _ => {},
                 }
             }
-            result.extend(dfs_with_gate_checks(neighbor, hexes, barriers, visited, dist + 1, max_dist));
+            if max_dist == None {
+                result.extend(dfs_with_gate_checks(neighbor, hexes, barriers, visited, dist + 1, max_dist));
+            } else {
+                let mut c = visited.clone();
+                result.extend(dfs_with_gate_checks(neighbor, hexes, barriers, &mut c, dist + 1, max_dist));
+            }
         }
     }
     return result;
@@ -230,6 +235,15 @@ mod tests {
         assert_set_equality(ORIGIN.ne().pathfind(&map, &barriers, Some(2)), vec![
             ORIGIN.e().e(),
             ORIGIN.w(),
+        ]);
+    }
+
+    #[test]
+    fn test_pathfinding_multiple_paths() {
+        let barriers = vec![];
+        let map = vec![ORIGIN, ORIGIN.nw(), ORIGIN.w(), ORIGIN.w().w(), ORIGIN.nw().ne()];
+        assert_set_equality(ORIGIN.pathfind(&map, &barriers, Some(2)), vec![
+            ORIGIN.nw(), ORIGIN.w(), ORIGIN.w().w(), ORIGIN.nw().ne()
         ]);
     }
 

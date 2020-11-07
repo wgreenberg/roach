@@ -101,7 +101,16 @@ impl GameState {
         // check if removing this piece breaks the One Hive Rule
         let pieces_after_pickup = board_without_piece.keys().cloned().collect();
         if !Hex::all_contiguous(&pieces_after_pickup) {
-            return vec![];
+            // but if this is a pillbug (or a mosquito imitating a pillbug), just return the pieces
+            // it can toss
+            match piece.bug {
+                Pillbug => return self.get_pillbug_tosses(start),
+                Mosquito => return start.neighbors().iter()
+                    .flat_map(|neighbor| self.board.get(neighbor))
+                    .find(|neighbor_piece| neighbor_piece.bug == Pillbug)
+                    .map_or(vec![], |_| self.get_pillbug_tosses(start)),
+                _ => return vec![],
+            }
         }
 
         // all open hexes to move to
@@ -140,35 +149,10 @@ impl GameState {
                     Turn::Move(piece, neighbor.add(travel))
                 })
                 .collect(),
-            Pillbug => {
-                // start w/ the normal pillbug movements of distance 1
-                let mut normal_moves: Vec<Turn> = start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
-                    .map(|&end| Turn::Move(piece, end))
-                    .collect();
-                // then add movements for all of the movable neighboring pieces, to all the empty
-                // adjacent hexes
-                let (neighbors, empty): (Vec<Hex>, Vec<Hex>) = start.neighbors().iter()
-                    .partition(|hex| self.board.contains_key(hex));
-                normal_moves.extend(neighbors.iter()
-                    .filter(|neighbor| match self.turns.last() {
-                        // we can't move neighbors that've just been moved
-                        Some(Turn::Move(_, hex)) => hex != *neighbor,
-                        _ => true,
-                    })
-                    .filter(|neighbor| {
-                        // check if this neighbor can be moved w/o violating the One Hive Rule
-                        let mut board_without_neighbor = self.board.clone();
-                        board_without_neighbor.remove(neighbor);
-                        let pieces_without_neighbor = board_without_neighbor.keys().cloned().collect();
-                        // TODO: add exception for stacked pincers
-                        Hex::all_contiguous(&pieces_without_neighbor)
-                    })
-                    .flat_map(|neighbor| {
-                        let neighbor_piece = self.board.get(neighbor).unwrap();
-                        empty.iter().map(move |dest| Turn::Move(neighbor_piece.clone(), dest.clone()))
-                    }));
-                normal_moves
-            },
+            Pillbug => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                .map(|&end| Turn::Move(piece, end))
+                .chain(self.get_pillbug_tosses(start))
+                .collect(),
             Ladybug => start.pathfind(&pieces_after_pickup, &vec![], Some(2)).iter()
                 .flat_map(|on_hive| on_hive.neighbors().iter()
                     .filter(|neighbor| !self.board.contains_key(neighbor))
@@ -177,13 +161,51 @@ impl GameState {
             Mosquito => start.neighbors().iter()
                 .flat_map(|neighbor| self.board.get(neighbor))
                 .filter(|neighbor_piece| neighbor_piece.bug != Mosquito)
-                .flat_map(|&neighbor_piece| self.get_piece_moves(neighbor_piece, start))
-                .map(|turn| match turn {
-                    Turn::Move(_, dest) => Turn::Move(piece, dest),
-                    _ => unreachable!(),
+                .flat_map(|&neighbor_piece| {
+                    // if we're imitating a pillbug, we unfortunately have to manually calculate
+                    // the moves here since it's impossible to distinguish moves (which we want
+                    // to overwrite the piece value of) from tosses (which we don't) from the
+                    // results of self.get_piece_moves(...)
+                    if neighbor_piece.bug == Pillbug {
+                        start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                            .map(|&end| Turn::Move(piece, end))
+                            .chain(self.get_pillbug_tosses(start))
+                            .collect()
+                    } else {
+                        // for normal moves, overwrite the piece value with our mosquito
+                        self.get_piece_moves(neighbor_piece, start).iter()
+                            .map(|&turn| match turn {
+                                Turn::Move(_, dest) => Turn::Move(piece, dest),
+                                _ => unreachable!(),
+                            }).collect::<Vec<Turn>>()
+                    }
                 })
                 .collect(),
         }
+    }
+
+    fn get_pillbug_tosses(&self, hex: Hex) -> Vec<Turn> {
+        let (neighbors, empty): (Vec<Hex>, Vec<Hex>) = hex.neighbors().iter()
+            .partition(|hex| self.board.contains_key(hex));
+        neighbors.iter()
+            .filter(|neighbor| match self.turns.last() {
+                // we can't move neighbors that've just been moved
+                Some(Turn::Move(_, hex)) => hex != *neighbor,
+                _ => true,
+            })
+            .filter(|neighbor| {
+                // check if this neighbor can be moved w/o violating the One Hive Rule
+                let mut board_without_neighbor = self.board.clone();
+                board_without_neighbor.remove(neighbor);
+                let pieces_without_neighbor = board_without_neighbor.keys().cloned().collect();
+                // TODO: add exception for stacked pincers
+                Hex::all_contiguous(&pieces_without_neighbor)
+            })
+            .flat_map(|neighbor| {
+                let neighbor_piece = self.board.get(neighbor).unwrap();
+                empty.iter().map(move |dest| Turn::Move(neighbor_piece.clone(), dest.clone()))
+            })
+            .collect()
     }
 
     fn get_placeable_pieces(&self) -> Vec<Piece> {
@@ -328,7 +350,7 @@ pub enum Turn  {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{assert_set_equality, check_move, get_valid_movements, play_and_verify, assert_valid_movements};
+    use crate::test_utils::{assert_set_equality, check_move, get_valid_movements, play_and_verify, assert_valid_movements, assert_piece_movements};
 
     #[test]
     fn test_first_valid_moves() {
@@ -709,6 +731,43 @@ mod test {
             "bL1 -wA1",
             "bL1 \\wA1",
         ]);
+
+        // from ./test_data/HV-omiomio-andyy-2020-03-28-0355.sgf
+        let mut game = GameState::new_with_type(White, GameType::PLM(true, true, true));
+        play_and_verify(&mut game, vec![
+            "wS1",
+            "bG1 /wS1",
+            "wS2 wS1-",
+            "bL1 bG1\\",
+            "wG1 \\wS1",
+            "bQ -bL",
+            "wQ -wG1",
+            "bS1 \\bQ",
+            "wS2 bL\\",
+            "bS1 -wQ",
+            "wA1 wG1-",
+            "bB1 \\bS1",
+            "wA1 \\bB1",
+            "bB2 /bS1",
+            "wB1 wQ/",
+            "bB2 /wQ",
+            "wS2 -bQ",
+        ]);
+        assert_piece_movements(&game, "bL1", vec![
+            "bL1 -wS2",
+            "bL1 \\wS2",
+            "bL1 /wS2",
+            "bL1 wS2\\",
+            "bL1 wS2/",
+            "bL1 -bG1",
+            "bL1 bG1-",
+            "bL1 \\bG1",
+            "bL1 -wS1",
+            "bL1 wS1-",
+            "bL1 wS1/",
+            "bL1 wS1\\",
+            "bL1 bQ1\\",
+        ]);
     }
 
     #[test]
@@ -736,6 +795,21 @@ mod test {
             "bM1 bG1/", // mimic grasshopper
             "bM1 \\bQ1", // mimic grasshopper
             "bM1 -wA1", // mimic grasshopper
+        ]);
+
+        // test a case where we imitate a pillbug
+        let mut game2 = GameState::new_with_type(White, GameType::PLM(true, true, true));
+        play_and_verify(&mut game2, vec![
+            "wL1",
+            "bL1 \\wL1",
+            "wP1 wL-",
+            "bM1 bL/",
+            "wS1 wP-",
+            "bQ \\bL",
+            "wQ wP\\",
+            "bM1 -wQ",
+            "wS2 wQ\\",
+            "wP1 -bM",
         ]);
     }
 
