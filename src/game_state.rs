@@ -69,6 +69,7 @@ impl GameState {
 
         // if this player's queen is in play, add in the set of possible piece moves
         if !self.unplayed_pieces.contains(&Piece::new(Queen, self.current_player)) {
+            // TODO filter out moves that don't change board state
             moves.extend(self.board.iter()
                 .filter(|(_, piece)| piece.owner == self.current_player)
                 .filter(|(_, &piece)| match self.turns.last() {
@@ -168,7 +169,20 @@ impl GameState {
                     }));
                 normal_moves
             },
-            _ => vec![],
+            Ladybug => start.pathfind(&pieces_after_pickup, &vec![], Some(2)).iter()
+                .flat_map(|on_hive| on_hive.neighbors().iter()
+                    .filter(|neighbor| !self.board.contains_key(neighbor))
+                    .map(|&end| Turn::Move(piece, end)).collect::<Vec<Turn>>())
+                .collect(),
+            Mosquito => start.neighbors().iter()
+                .flat_map(|neighbor| self.board.get(neighbor))
+                .filter(|neighbor_piece| neighbor_piece.bug != Mosquito)
+                .flat_map(|&neighbor_piece| self.get_piece_moves(neighbor_piece, start))
+                .map(|turn| match turn {
+                    Turn::Move(_, dest) => Turn::Move(piece, dest),
+                    _ => unreachable!(),
+                })
+                .collect(),
         }
     }
 
@@ -667,6 +681,61 @@ mod test {
             "bP1 bQ1-",
             "bS1 bP1\\",
             "bS1 -wQ1",
+        ]);
+    }
+
+    #[test]
+    fn test_ladybug() {
+        let mut game = GameState::new_with_type(Black, GameType::PLM(false, true, false));
+        play_and_verify(&mut game, vec![
+            "bL1",
+            "wS1 -bL1",
+            "bQ1 bL1/",
+            "wQ1 \\wS1",
+            "bQ1 \\bL1",
+            "wA1 /wS1",
+            "bQ1 wQ1/",
+            "wA2 /wA1",
+        ]);
+        assert_valid_movements(&game, vec![
+            "bQ1 wQ1-",
+            "bQ1 \\wQ1",
+            "bL1 wQ1-",
+            "bL1 \\wQ1",
+            "bL1 -wQ1",
+            "bL1 /wQ1",
+            "bL1 wA1-",
+            "bL1 wA1\\",
+            "bL1 -wA1",
+            "bL1 \\wA1",
+        ]);
+    }
+
+    #[test]
+    fn test_mosquito() {
+        let mut game = GameState::new_with_type(Black, GameType::PLM(false, false, true));
+        play_and_verify(&mut game, vec![
+            "bM1",
+            "wS1 -bM1",
+            "bQ1 bM1/",
+            "wQ1 \\wS1",
+            "bQ1 \\bM1",
+            "wA1 /wS1",
+            "bG1 bM1/",
+            "wA1 -wS1",
+        ]);
+        assert_valid_movements(&game, vec![
+            "bQ1 \\bG1",
+            "bQ1 wQ1/",
+            "bG1 -wQ1",
+            "bG1 /bM1",
+            "bM1 /wA1", // mimic spider
+            "bM1 bG1/", // mimic spider
+            "bM1 wS1\\", // mimic queen
+            "bM1 bG1\\", // mimic queen 
+            "bM1 bG1/", // mimic grasshopper
+            "bM1 \\bQ1", // mimic grasshopper
+            "bM1 -wA1", // mimic grasshopper
         ]);
     }
 
