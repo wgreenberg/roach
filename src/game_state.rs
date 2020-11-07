@@ -314,7 +314,7 @@ pub enum Turn  {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{assert_set_equality, check_move, get_valid_movements};
+    use crate::test_utils::{assert_set_equality, check_move, get_valid_movements, play_and_verify, assert_valid_movements};
 
     #[test]
     fn test_first_valid_moves() {
@@ -632,38 +632,41 @@ mod test {
 
     #[test]
     fn test_pillbug() {
-        use crate::parser;
         let mut game = GameState::new_with_type(Black, GameType::PLM(true, false, false));
-        check_move(&mut game, Turn::Place(Piece::new(Pillbug, Black), ORIGIN));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.w()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne()));
-        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.w().nw()));
-        check_move(&mut game, Turn::Move(Piece::new(Queen, Black), ORIGIN.nw()));
-        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()));
-        assert_set_equality(get_valid_movements(&game), vec![
-            parser::parse_move_string("bP1 wS1\\", &game.board).unwrap(),
-            parser::parse_move_string("bP1 bQ1-", &game.board).unwrap(),
-            parser::parse_move_string("wS1 /bP1", &game.board).unwrap(),
-            parser::parse_move_string("wS1 bP1\\", &game.board).unwrap(),
-            parser::parse_move_string("wS1 bP1-", &game.board).unwrap(),
-            parser::parse_move_string("wS1 bP1/", &game.board).unwrap(),
+        play_and_verify(&mut game, vec![
+            "bP1",
+            "wS1 -bP1",
+            "bQ1 bP1/",
+            "wQ1 \\wS1",
+            "bQ1 \\bP1",
+            "wQ1 \\bQ1",
         ]);
-        check_move(&mut game, Turn::Move(Piece::new(Spider, White), ORIGIN.e()));
+        assert_valid_movements(&game, vec![
+            "bP1 wS1\\",
+            "bP1 bQ1-",
+            "wS1 /bP1",
+            "wS1 bP1\\",
+            "wS1 bP1-",
+            "wS1 bP1/",
+        ]);
+        play_and_verify(&mut game, vec!["wS1 bP1-"]);
         // make sure white can't move the white spider, since it was just pillbug'd
-        assert_set_equality(get_valid_movements(&game), vec![
-            parser::parse_move_string("wQ1 bQ1/", &game.board).unwrap(),
-            parser::parse_move_string("wQ1 -bQ1", &game.board).unwrap(),
+        assert_valid_movements(&game, vec![
+            "wQ1 bQ1/",
+            "wQ1 -bQ1",
         ]);
-        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw().w()));
-        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.nw().ne()));
-        check_move(&mut game, Turn::Move(Piece::new(Spider, White), ORIGIN.w()));
+        play_and_verify(&mut game, vec![
+            "wQ1 -bQ1",
+            "bS1 bQ1/",
+            "wS1 -bP1",
+        ]);
         // make sure the pillbug can only move normally, since the white Spider just moved and
         // thus cannot be pillbug'd
-        assert_set_equality(get_valid_movements(&game), vec![
-            parser::parse_move_string("bP1 wS1\\", &game.board).unwrap(),
-            parser::parse_move_string("bP1 bQ1-", &game.board).unwrap(),
-            parser::parse_move_string("bS1 bP1\\", &game.board).unwrap(),
-            parser::parse_move_string("bS1 -wQ1", &game.board).unwrap(),
+        assert_valid_movements(&game, vec![
+            "bP1 wS1\\",
+            "bP1 bQ1-",
+            "bS1 bP1\\",
+            "bS1 -wQ1",
         ]);
     }
 

@@ -6,6 +6,7 @@ use crate::game_state::Player::*;
 use crate::hex::{Hex, ORIGIN};
 use crate::piece::Piece;
 use crate::piece::Bug::*;
+use crate::parser::parse_move_string;
 
 pub fn check_move(game: &mut GameState, turn: Turn) {
     assert!(game.submit_turn(turn).is_ok());
@@ -96,4 +97,17 @@ pub fn assert_set_equality<T>(got: Vec<T>, expected: Vec<T>)
         panic!("set inequality! expected len {}, got {}\nmissing {:?}\nunwanted {:?}",
             expected_hash.len(), got_hash.len(), needed, unwanted);
     }
+}
+
+pub fn play_and_verify(game: &mut GameState, move_strings: Vec<&str>) {
+    for move_str in move_strings {
+        let turn = parse_move_string(move_str, &game.board).unwrap();
+        check_move(game, turn);
+    }
+}
+
+pub fn assert_valid_movements(game: &GameState, move_strings: Vec<&str>) {
+    assert_set_equality(get_valid_movements(game), move_strings.iter()
+        .map(|move_str| parse_move_string(move_str, &game.board).unwrap())
+        .collect());
 }
