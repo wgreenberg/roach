@@ -1,25 +1,24 @@
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::path::Path;
-use crate::game_state::{Turn, GameState, Player};
+use crate::game_state::{Turn, GameState, Player, GameType};
 use crate::hex::Hex;
 use crate::piece::Piece;
 use crate::parser::parse_piece_string;
 
 fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
-    let file = File::open(path).unwrap();
-    // seems like all the test games start w/ white
-    let mut game = GameState::new(Player::White);
     let mut origin: Option<Hex> = None;
     let mut last_turn: Option<Turn> = None;
-    for maybe_line in BufReader::new(file).lines() {
+    let game_type_line = BufReader::new(File::open(&path).unwrap())
+        .lines().find(|maybe_line| match maybe_line {
+            Ok(line) => line.starts_with("SU["),
+            _ => false,
+        }).unwrap().unwrap();
+    let game_type = parse_game_type(&game_type_line).unwrap();
+    // seems like all the test games start w/ white
+    let mut game = GameState::new_with_type(Player::White, game_type);
+    for maybe_line in BufReader::new(File::open(&path).unwrap()).lines() {
         let line = maybe_line.unwrap();
-        if line.starts_with("SU[") {
-            // make sure we're playing without expansion pieces (for now)
-            if line != "SU[Hive]" {
-                return None
-            }
-        }
         if line.starts_with("; ") {
             if line.contains("move") || line.contains("dropb") || line.contains("pass") {
                 last_turn = parse_turn(&line, &game.unplayed_pieces, &mut origin);
@@ -33,13 +32,24 @@ fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
     Some(game)
 }
 
+fn parse_game_type(input: &str) -> Option<GameType> {
+    let mut tokens = input.split(|c| c == '[' || c == ']');
+    tokens.next();
+    match tokens.next().unwrap() {
+        "Hive" => Some(GameType::Base),
+        "Hive-LM" => Some(GameType::PLM(false, true, true)),
+        "Hive-PLM" => Some(GameType::PLM(true, true, true)),
+        _ => None,
+    }
+}
+
 fn parse_turn(input: &str, unplayed_pieces: &Vec<Piece>, origin: &mut Option<Hex>) -> Option<Turn> {
     if input.contains("move") || input.contains("dropb") {
         let mut tokens = input.split_whitespace();
         let _semicolon = tokens.next();
         let _turn_no = tokens.next();
         let move_type = tokens.next();
-        if move_type == Some("move") {
+        if move_type == Some("move") || move_type == Some("pmove") {
             let _color = tokens.next();
         }
         let piece = parse_piece_string(tokens.next().unwrap()).unwrap();
