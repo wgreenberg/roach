@@ -70,7 +70,14 @@ impl GameState {
         // if this player's queen is in play, add in the set of possible piece moves
         if !self.unplayed_pieces.contains(&Piece::new(Queen, self.current_player)) {
             moves.extend(self.board.iter()
-                .filter(|(_, piece)| piece.owner == self.current_player) // once the pillbug is implemented, this has gotta go
+                .filter(|(_, piece)| piece.owner == self.current_player)
+                .filter(|(_, &piece)| match self.turns.last() {
+                    // pieces that have been pillbugged can't move for a turn, and the only time
+                    // the current player's piece would've been moved a turn ago is during a
+                    // pillbug ability
+                    Some(Turn::Move(moved_piece, _)) => piece != *moved_piece,
+                    _ => true,
+                })
                 .flat_map(|(&start, &piece)| self.get_piece_moves(piece, start)));
         }
 
@@ -132,6 +139,35 @@ impl GameState {
                     Turn::Move(piece, neighbor.add(travel))
                 })
                 .collect(),
+            Pillbug => {
+                // start w/ the normal pillbug movements of distance 1
+                let mut normal_moves: Vec<Turn> = start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                    .map(|&end| Turn::Move(piece, end))
+                    .collect();
+                // then add movements for all of the movable neighboring pieces, to all the empty
+                // adjacent hexes
+                let (neighbors, empty): (Vec<Hex>, Vec<Hex>) = start.neighbors().iter()
+                    .partition(|hex| self.board.contains_key(hex));
+                normal_moves.extend(neighbors.iter()
+                    .filter(|neighbor| match self.turns.last() {
+                        // we can't move neighbors that've just been moved
+                        Some(Turn::Move(_, hex)) => hex != *neighbor,
+                        _ => true,
+                    })
+                    .filter(|neighbor| {
+                        // check if this neighbor can be moved w/o violating the One Hive Rule
+                        let mut board_without_neighbor = self.board.clone();
+                        board_without_neighbor.remove(neighbor);
+                        let pieces_without_neighbor = board_without_neighbor.keys().cloned().collect();
+                        // TODO: add exception for stacked pincers
+                        Hex::all_contiguous(&pieces_without_neighbor)
+                    })
+                    .flat_map(|neighbor| {
+                        let neighbor_piece = self.board.get(neighbor).unwrap();
+                        empty.iter().map(move |dest| Turn::Move(neighbor_piece.clone(), dest.clone()))
+                    }));
+                normal_moves
+            },
             _ => vec![],
         }
     }
@@ -591,6 +627,43 @@ mod test {
         assert_set_equality(count_pieces(&plm, Black), vec![
             (Queen, 1), (Beetle, 2), (Spider, 2), (Grasshopper, 3), (Ant, 3),
             (Pillbug, 1), (Ladybug, 1), (Mosquito, 1),
+        ]);
+    }
+
+    #[test]
+    fn test_pillbug() {
+        use crate::parser;
+        let mut game = GameState::new_with_type(Black, GameType::PLM(true, false, false));
+        check_move(&mut game, Turn::Place(Piece::new(Pillbug, Black), ORIGIN));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, White), ORIGIN.w()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, Black), ORIGIN.ne()));
+        check_move(&mut game, Turn::Place(Piece::new(Queen, White), ORIGIN.w().nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, Black), ORIGIN.nw()));
+        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw().nw()));
+        assert_set_equality(get_valid_movements(&game), vec![
+            parser::parse_move_string("bP1 wS1\\", &game.board).unwrap(),
+            parser::parse_move_string("bP1 bQ1-", &game.board).unwrap(),
+            parser::parse_move_string("wS1 /bP1", &game.board).unwrap(),
+            parser::parse_move_string("wS1 bP1\\", &game.board).unwrap(),
+            parser::parse_move_string("wS1 bP1-", &game.board).unwrap(),
+            parser::parse_move_string("wS1 bP1/", &game.board).unwrap(),
+        ]);
+        check_move(&mut game, Turn::Move(Piece::new(Spider, White), ORIGIN.e()));
+        // make sure white can't move the white spider, since it was just pillbug'd
+        assert_set_equality(get_valid_movements(&game), vec![
+            parser::parse_move_string("wQ1 bQ1/", &game.board).unwrap(),
+            parser::parse_move_string("wQ1 -bQ1", &game.board).unwrap(),
+        ]);
+        check_move(&mut game, Turn::Move(Piece::new(Queen, White), ORIGIN.nw().w()));
+        check_move(&mut game, Turn::Place(Piece::new(Spider, Black), ORIGIN.nw().ne()));
+        check_move(&mut game, Turn::Move(Piece::new(Spider, White), ORIGIN.w()));
+        // make sure the pillbug can only move normally, since the white Spider just moved and
+        // thus cannot be pillbug'd
+        assert_set_equality(get_valid_movements(&game), vec![
+            parser::parse_move_string("bP1 wS1\\", &game.board).unwrap(),
+            parser::parse_move_string("bP1 bQ1-", &game.board).unwrap(),
+            parser::parse_move_string("bS1 bP1\\", &game.board).unwrap(),
+            parser::parse_move_string("bS1 -wQ1", &game.board).unwrap(),
         ]);
     }
 
