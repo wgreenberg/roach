@@ -1,7 +1,8 @@
 use std::fs::File;
+use std::collections::HashMap;
 use std::io::{BufReader, BufRead};
 use std::path::Path;
-use crate::game_state::{Turn, GameState, Player, GameType};
+use crate::game_state::{Turn, GameState, Player, GameType, GameStatus};
 use crate::hex::Hex;
 use crate::piece::Piece;
 use crate::parser::parse_piece_string;
@@ -21,11 +22,20 @@ fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
         let line = maybe_line.unwrap();
         if line.starts_with("; ") {
             if line.contains("move") || line.contains("dropb") || line.contains("pass") {
-                last_turn = parse_turn(&line, &game.unplayed_pieces, &mut origin);
+                if let Some(turn) = parse_turn(&line, &game.board, &mut origin) {
+                    last_turn = Some(turn);
+                } else {
+                    panic!("failed to parse turn {}", line);
+                }
             } else if line.contains("resign") {
                 return Some(game);
             } else if line.contains("done]") {
+                // game terminated early
+                if last_turn == None {
+                    return Some(game);
+                }
                 assert_eq!(game.submit_turn(last_turn.unwrap()), Ok(()));
+                last_turn = None;
             }
         }
     }
@@ -37,13 +47,14 @@ fn parse_game_type(input: &str) -> Option<GameType> {
     tokens.next();
     match tokens.next().unwrap() {
         "Hive" => Some(GameType::Base),
+        "Hive-L" => Some(GameType::PLM(false, true, false)),
         "Hive-LM" => Some(GameType::PLM(false, true, true)),
         "Hive-PLM" => Some(GameType::PLM(true, true, true)),
         _ => None,
     }
 }
 
-fn parse_turn(input: &str, unplayed_pieces: &Vec<Piece>, origin: &mut Option<Hex>) -> Option<Turn> {
+fn parse_turn(input: &str, board: &HashMap<Hex, Piece>, origin: &mut Option<Hex>) -> Option<Turn> {
     if input.contains("move") || input.contains("dropb") {
         let mut tokens = input.split_whitespace();
         let _semicolon = tokens.next();
@@ -61,10 +72,10 @@ fn parse_turn(input: &str, unplayed_pieces: &Vec<Piece>, origin: &mut Option<Hex
         if origin.is_none() {
             *origin = Some(dest);
         }
-        if unplayed_pieces.contains(&piece) {
-            Some(Turn::Place(piece, dest.sub(origin.unwrap())))
-        } else {
+        if board.values().find(|&&board_piece| piece == board_piece).is_some() {
             Some(Turn::Move(piece, dest.sub(origin.unwrap())))
+        } else {
+            Some(Turn::Place(piece, dest.sub(origin.unwrap())))
         }
     } else if input.contains("pass") {
         Some(Turn::Pass)
