@@ -361,7 +361,7 @@ pub enum Turn  {
 mod test {
     use super::*;
     use crate::test_utils::{assert_set_equality, check_move, get_valid_movements, play_and_verify,
-                            assert_valid_movements, assert_piece_movements, draw_board};
+                            assert_valid_movements, assert_piece_movements};
 
     #[test]
     fn test_first_valid_moves() {
