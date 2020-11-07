@@ -7,7 +7,7 @@ use crate::hex::Hex;
 use crate::piece::Piece;
 use crate::parser::parse_piece_string;
 
-fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
+pub fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
     let mut origin: Option<Hex> = None;
     let mut last_turn: Option<Turn> = None;
     let game_type_line = BufReader::new(File::open(&path).unwrap())
