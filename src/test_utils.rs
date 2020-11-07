@@ -101,7 +101,7 @@ pub fn assert_set_equality<T>(got: Vec<T>, expected: Vec<T>)
 
 pub fn play_and_verify(game: &mut GameState, move_strings: Vec<&str>) {
     for move_str in move_strings {
-        let turn = parse_move_string(move_str, &game.board).unwrap();
+        let turn = parse_move_string(move_str, &game.board, &game.stacks).unwrap();
         check_move(game, turn);
     }
 }
@@ -109,7 +109,7 @@ pub fn play_and_verify(game: &mut GameState, move_strings: Vec<&str>) {
 pub fn assert_piece_movements(game: &GameState, piece_string: &str, move_strings: Vec<&str>) {
     let piece = parse_piece_string(piece_string).unwrap();
     let expected = move_strings.iter()
-        .map(|move_str| parse_move_string(move_str, &game.board).unwrap())
+        .map(|move_str| parse_move_string(move_str, &game.board, &game.stacks).unwrap())
         .collect();
     let got = get_valid_movements(game).iter()
         .filter(|turn| match turn {
@@ -121,6 +121,6 @@ pub fn assert_piece_movements(game: &GameState, piece_string: &str, move_strings
 
 pub fn assert_valid_movements(game: &GameState, move_strings: Vec<&str>) {
     assert_set_equality(get_valid_movements(game), move_strings.iter()
-        .map(|move_str| parse_move_string(move_str, &game.board).unwrap())
+        .map(|move_str| parse_move_string(move_str, &game.board, &game.stacks).unwrap())
         .collect());
 }

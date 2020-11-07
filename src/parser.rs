@@ -66,7 +66,7 @@ pub fn parse_game_string(input: &str) -> ParserResult<GameState> {
     let turn_no = parse_game_turn(tokens.next().ok_or("empty TurnString")?)?;
     let mut game = GameState::new_with_type(White, game_type);
     for token in tokens {
-        if let Err(err) = game.submit_turn(parse_move_string(token, &game.board)?) {
+        if let Err(err) = game.submit_turn(parse_move_string(token, &game.board, &game.stacks)?) {
             return Err(format!("invalid turn {}: {:?}", token, err).into());
         }
     }
@@ -109,7 +109,7 @@ pub fn parse_game_type(input: &str) -> ParserResult<GameType> {
     }
 }
 
-pub fn parse_move_string(input: &str, board: &HashMap<Hex, Piece>) -> ParserResult<Turn> {
+pub fn parse_move_string(input: &str, board: &HashMap<Hex, Piece>, stacks: &HashMap<Hex, Vec<Piece>>) -> ParserResult<Turn> {
     let mut tokens = input.split_whitespace();
     let piece = parse_piece_string(tokens.next().ok_or("empty input")?)?;
     if let Some(dest_str) = tokens.next() {
@@ -125,6 +125,8 @@ pub fn parse_move_string(input: &str, board: &HashMap<Hex, Piece>) -> ParserResu
         };
         let target_hex = board.iter()
             .find_map(|(&key, &value)| if value == dest_piece { Some(key) } else { None })
+            .or_else(|| stacks.iter()
+                .find_map(|(&key, stack)| if stack.contains(&dest_piece) { Some(key) } else { None }))
             .ok_or(format!("target piece not present on board: {:?}", piece))?;
         let dest_hex = match (side, dir) {
             ("east", "-") => target_hex.e(),
@@ -182,15 +184,29 @@ mod tests {
             (ORIGIN, Piece::new(Queen, White)),
             (ORIGIN.w(), Piece::new(Ant, Black)),
         ].iter().cloned());
+        let stacks = HashMap::new();
 
-        assert_eq!(parse_move_string("wS1", &board), Ok(Turn::Place(Piece::new(Spider, White), ORIGIN)));
-        assert_eq!(parse_move_string("wS1 wQ-", &board), Ok(Turn::Place(Piece::new(Spider, White), ORIGIN.e())));
-        assert_eq!(parse_move_string("bA1 /wQ", &board), Ok(Turn::Move(Piece::new(Ant, Black), ORIGIN.sw())));
+        assert_eq!(parse_move_string("wS1", &board, &stacks), Ok(Turn::Place(Piece::new(Spider, White), ORIGIN)));
+        assert_eq!(parse_move_string("wS1 wQ-", &board, &stacks), Ok(Turn::Place(Piece::new(Spider, White), ORIGIN.e())));
+        assert_eq!(parse_move_string("bA1 /wQ", &board, &stacks), Ok(Turn::Move(Piece::new(Ant, Black), ORIGIN.sw())));
 
-        assert!(parse_move_string("foo", &board).is_err());
-        assert!(parse_move_string("wwQ", &board).is_err());
-        assert!(parse_move_string("wQ foo", &board).is_err());
-        assert!(parse_move_string("wQ -bQ2", &board).is_err());
+        assert!(parse_move_string("foo", &board, &stacks).is_err());
+        assert!(parse_move_string("wwQ", &board, &stacks).is_err());
+        assert!(parse_move_string("wQ foo", &board, &stacks).is_err());
+        assert!(parse_move_string("wQ -bQ2", &board, &stacks).is_err());
+    }
+
+    #[test]
+    fn test_moves_involving_stacks() {
+        let board: HashMap<Hex, Piece> = HashMap::from_iter(vec![
+            (ORIGIN, Piece::new(Beetle, White)),
+            (ORIGIN.w(), Piece::new(Ant, Black)),
+        ].iter().cloned());
+        let stacks: HashMap<Hex, Vec<Piece>> = HashMap::from_iter(vec![
+            (ORIGIN, vec![Piece::new(Queen, White)]),
+        ].iter().cloned());
+
+        assert_eq!(parse_move_string("wB1 wQ1-", &board, &stacks), Ok(Turn::Move(Piece::new(Beetle, White), ORIGIN.e())));
     }
 
     #[test]

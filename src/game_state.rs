@@ -158,29 +158,39 @@ impl GameState {
                     .filter(|neighbor| !self.board.contains_key(neighbor))
                     .map(|&end| Turn::Move(piece, end)).collect::<Vec<Turn>>())
                 .collect(),
-            Mosquito => start.neighbors().iter()
-                .flat_map(|neighbor| self.board.get(neighbor))
-                .filter(|neighbor_piece| neighbor_piece.bug != Mosquito)
-                .flat_map(|&neighbor_piece| {
-                    // if we're imitating a pillbug, we unfortunately have to manually calculate
-                    // the moves here since it's impossible to distinguish moves (which we want
-                    // to overwrite the piece value of) from tosses (which we don't) from the
-                    // results of self.get_piece_moves(...)
-                    if neighbor_piece.bug == Pillbug {
-                        start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
-                            .map(|&end| Turn::Move(piece, end))
-                            .chain(self.get_pillbug_tosses(start))
-                            .collect()
-                    } else {
-                        // for normal moves, overwrite the piece value with our mosquito
-                        self.get_piece_moves(neighbor_piece, start).iter()
-                            .map(|&turn| match turn {
-                                Turn::Move(_, dest) => Turn::Move(piece, dest),
-                                _ => unreachable!(),
-                            }).collect::<Vec<Turn>>()
-                    }
-                })
-                .collect(),
+            Mosquito => {
+                if on_hive {
+                    self.get_piece_moves(Piece::new(Beetle, piece.owner), start).iter()
+                        .map(|&turn| match turn {
+                            Turn::Move(_, dest) => Turn::Move(piece, dest),
+                            _ => unreachable!(),
+                        }).collect::<Vec<Turn>>()
+                } else {
+                    start.neighbors().iter()
+                        .flat_map(|neighbor| self.board.get(neighbor))
+                        .filter(|neighbor_piece| neighbor_piece.bug != Mosquito)
+                        .flat_map(|&neighbor_piece| {
+                            // if we're imitating a pillbug, we unfortunately have to manually calculate
+                            // the moves here since it's impossible to distinguish moves (which we want
+                            // to overwrite the piece value of) from tosses (which we don't) from the
+                            // results of self.get_piece_moves(...)
+                            if neighbor_piece.bug == Pillbug {
+                                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                                    .map(|&end| Turn::Move(piece, end))
+                                    .chain(self.get_pillbug_tosses(start))
+                                    .collect()
+                            } else {
+                                // for normal moves, overwrite the piece value with our mosquito
+                                self.get_piece_moves(neighbor_piece, start).iter()
+                                    .map(|&turn| match turn {
+                                        Turn::Move(_, dest) => Turn::Move(piece, dest),
+                                        _ => unreachable!(),
+                                    }).collect::<Vec<Turn>>()
+                            }
+                        })
+                        .collect()
+                }
+            },
         }
     }
 
@@ -350,7 +360,8 @@ pub enum Turn  {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{assert_set_equality, check_move, get_valid_movements, play_and_verify, assert_valid_movements, assert_piece_movements};
+    use crate::test_utils::{assert_set_equality, check_move, get_valid_movements, play_and_verify,
+                            assert_valid_movements, assert_piece_movements, draw_board};
 
     #[test]
     fn test_first_valid_moves() {
@@ -810,6 +821,40 @@ mod test {
             "bM1 -wQ",
             "wS2 wQ\\",
             "wP1 -bM",
+        ]);
+
+        // make sure when a mosquito's on the hive, it can only move like a beetle until it drops
+        // back down
+        let mut game3 = GameState::new_with_type(White, GameType::PLM(true, true, true));
+        play_and_verify(&mut game3, vec![
+            "wM1",
+            "bB1 -wM1",
+            "wQ1 wM1/",
+            "bQ1 \\bB1",
+            "wQ1 \\wM1",
+            "bA1 -bB1",
+            "wM1 /wQ1", // beetle movement onto the hive
+            "bG1 -bA1",
+        ]);
+        assert_piece_movements(&game3, "wM1", vec![
+            "wM1 -wQ1",
+            "wM1 bQ1-",
+            "wM1 /bQ1",
+            "wM1 /bB1",
+            "wM1 bB1\\",
+            "wM1 bB1-",
+        ]);
+        play_and_verify(&mut game3, vec![
+            "wM1 -wQ1",
+            "bG1 bB1-",
+        ]);
+        assert_piece_movements(&game3, "wM1", vec![
+            "wM1 /wQ1",
+            "wM1 bB1/",
+            "wM1 -bB1",
+            "wM1 \\bA1",
+            "wM1 \\bQ1",
+            "wM1 bQ1/",
         ]);
     }
 
