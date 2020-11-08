@@ -147,11 +147,7 @@ impl fmt::Display for GameStatus {
 }
 
 impl Engine {
-    pub fn new() -> Engine {
-        Engine {
-            game: None,
-        }
-    }
+    pub fn new() -> Engine { Engine { game: None } }
 
     fn handle_newgame(&mut self, newgame: &str) -> EngineResult<String> {
         if newgame == "newgame" {
@@ -213,18 +209,14 @@ impl Engine {
         }
     }
 
-    fn get_info(&self) -> Output {
-        "id Bazinga v1.0\nMosquito;Ladybug;Pillbug".into()
-    }
+    fn get_info(&self) -> Output { "id Bazinga v1.0\nMosquito;Ladybug;Pillbug".into() }
 
     fn get_valid_moves(&self) -> EngineResult<String> {
         match &self.game {
-            Some(game) => {
-                Ok(game.get_valid_moves().iter()
-                    .map(|turn| get_turn_string(turn, game))
-                    .collect::<Vec<String>>()
-                    .join(";"))
-            },
+            Some(game) => Ok(game.get_valid_moves().iter()
+                .map(|turn| get_turn_string(turn, game))
+                .collect::<Vec<String>>()
+                .join(";")),
             None => Err(Error::EngineError("game not created yet".into())),
         }
     }
@@ -243,9 +235,7 @@ impl Engine {
 
     fn get_game_string(&self) -> EngineResult<String> {
         match &self.game {
-            Some(game) => {
-                Ok(format!("{}", game))
-            },
+            Some(game) => Ok(format!("{}", game)),
             None => Err(Error::EngineError("game not created yet".into())),
         }
     }

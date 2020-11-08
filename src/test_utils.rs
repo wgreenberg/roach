@@ -12,7 +12,7 @@ pub fn check_move(game: &mut GameState, turn: Turn) {
     assert!(game.submit_turn(turn).is_ok());
 }
 
-pub fn get_valid_movements(game: &GameState) -> Vec<Turn> {
+fn get_valid_movements(game: &GameState) -> Vec<Turn> {
     game.get_valid_moves().iter().filter(|turn| match turn {
         Turn::Move(_, _) => true,
         _ => false,
