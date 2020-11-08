@@ -50,22 +50,28 @@ impl From<&str> for Output {
     fn from(s: &str) -> Self { Output { text: Some(s.to_string()) } }
 }
 
-fn get_piece_string(piece: &Piece) -> String {
-    let color = match piece.owner {
-        White => "w",
-        Black => "b",
-    };
-    let piece_name = match piece.bug {
-        Ant => "A",
-        Beetle => "B",
-        Ladybug => "L",
-        Pillbug => "P",
-        Spider => "S",
-        Queen => "Q",
-        Mosquito => "M",
-        Grasshopper => "G",
-    };
-    format!("{}{}{}", color, piece_name, piece.id)
+impl fmt::Display for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let color = match self.owner {
+            White => "w",
+            Black => "b",
+        };
+        let name = match self.bug {
+            Ant => "A",
+            Beetle => "B",
+            Ladybug => "L",
+            Pillbug => "P",
+            Spider => "S",
+            Queen => "Q",
+            Mosquito => "M",
+            Grasshopper => "G",
+        };
+        if "PLMQ".contains(name) {
+            write!(f, "{}{}", color, name)
+        } else {
+            write!(f, "{}{}{}", color, name, self.id)
+        }
+    }
 }
 
 fn get_turn_string(turn: &Turn, game: &GameState) -> String {
@@ -74,19 +80,17 @@ fn get_turn_string(turn: &Turn, game: &GameState) -> String {
             let dest_neighbor = hex.neighbors().iter()
                 .find_map(|neighbor| game.board.get_key_value(neighbor));
             if let Some((neighbor_hex, neighbor_piece)) = dest_neighbor {
-                let from = get_piece_string(target);
-                let to = get_piece_string(neighbor_piece);
                 match hex.sub(*neighbor_hex) {
-                    s if s == ORIGIN.w() => format!("{} -{}", from, to),
-                    s if s == ORIGIN.nw() => format!("{} \\{}", from, to),
-                    s if s == ORIGIN.sw() => format!("{} /{}", from, to),
-                    s if s == ORIGIN.e() => format!("{} {}-", from, to),
-                    s if s == ORIGIN.ne() => format!("{} {}/", from, to),
-                    s if s == ORIGIN.se() => format!("{} {}\\", from, to),
+                    s if s == ORIGIN.w() => format!("{} -{}", target, neighbor_piece),
+                    s if s == ORIGIN.nw() => format!("{} \\{}", target, neighbor_piece),
+                    s if s == ORIGIN.sw() => format!("{} /{}", target, neighbor_piece),
+                    s if s == ORIGIN.e() => format!("{} {}-", target, neighbor_piece),
+                    s if s == ORIGIN.ne() => format!("{} {}/", target, neighbor_piece),
+                    s if s == ORIGIN.se() => format!("{} {}\\", target, neighbor_piece),
                     s => panic!("invalid neighbor hex {:#?}", s),
                 }
             } else {
-                get_piece_string(target)
+                format!("{}", target)
             }
         },
         Turn::Pass => "pass".to_string(),
@@ -151,7 +155,7 @@ impl Engine {
 
     fn handle_newgame(&mut self, newgame: &str) -> EngineResult<String> {
         if newgame == "newgame" {
-            self.game = Some(GameState::new(Black));
+            self.game = Some(GameState::new(White));
         } else {
             if let Some(arg) = newgame.strip_prefix("newgame ") {
                 if let Ok(game_type) = parse_game_type(arg) {
