@@ -1,8 +1,11 @@
-use hive::sgf_parser::read_sgf_file;
+use std::io::stdin;
+use hive::engine::Engine;
 
 fn main() {
-    std::fs::read_dir("./test_data")
-        .expect("failed to open dir")
-        .flat_map(|entry| entry)
-        .for_each(|entry| { read_sgf_file(entry.path()); });
+    let mut engine = Engine::new();
+    loop {
+        let mut input = String::new();
+        stdin().read_line(&mut input).unwrap();
+        println!("{}", engine.handle_command(input.trim()).to_string());
+    }
 }

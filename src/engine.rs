@@ -11,12 +11,12 @@ use std::fmt;
 
 pub type EngineResult<T> = Result<T, Error>;
 
-struct Engine {
+pub struct Engine {
     game: Option<GameState>,
 }
 
 #[derive(PartialEq, Debug)]
-struct Output {
+pub struct Output {
     text: Option<String>,
 }
 
@@ -82,8 +82,8 @@ fn get_turn_string(turn: &Turn, game: &GameState) -> String {
                     s if s == ORIGIN.sw() => format!("{} /{}", from, to),
                     s if s == ORIGIN.e() => format!("{} {}-", from, to),
                     s if s == ORIGIN.ne() => format!("{} {}/", from, to),
-                    s if s == ORIGIN.sw() => format!("{} {}\\", from, to),
-                    _ => unreachable!(),
+                    s if s == ORIGIN.se() => format!("{} {}\\", from, to),
+                    s => panic!("invalid neighbor hex {:#?}", s),
                 }
             } else {
                 get_piece_string(target)
