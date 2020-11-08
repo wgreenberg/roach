@@ -188,16 +188,12 @@ impl Engine {
     }
 
     fn handle_undo(&mut self, input: &str) -> EngineResult<String> {
-        if self.game.is_none() {
-            return Err(Error::EngineError("game not created yet".into()));
-        }
-
-        let n_turns = input.strip_prefix("undo ").unwrap()
-            .parse::<usize>().or(Err("please specify a number"))?;
         let game_turns = match &self.game {
             Some(game) => game.turns.len(),
-            _ => unreachable!(),
+            _ => return Err(Error::EngineError("game not created yet".into())),
         };
+        let n_turns = input.strip_prefix("undo ").unwrap()
+            .parse::<usize>().or(Err("please specify a number"))?;
         if n_turns > game_turns {
             return Err(Error::EngineError("cannot undo more turns than exist".into()));
         }
@@ -209,13 +205,11 @@ impl Engine {
             for turn in new_turns {
                 assert!(new_game.submit_turn(turn).is_ok());
             }
+            let result = Ok(format!("{}", new_game));
             self.game = Some(new_game);
+            return result;
         } else {
             unreachable!();
-        }
-        match &self.game {
-            Some(game) => Ok(format!("{}", game)),
-            _ => unreachable!(),
         }
     }
 
