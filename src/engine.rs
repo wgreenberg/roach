@@ -77,6 +77,9 @@ impl fmt::Display for Piece {
 fn get_turn_string(turn: &Turn, game: &GameState) -> String {
     match turn {
         Turn::Move(target, hex) | Turn::Place(target, hex) => {
+            if let Some(stacked_piece) = game.board.get(hex)  {
+                return format!("{} {}", target, stacked_piece);
+            }
             let dest_neighbor = hex.neighbors().iter()
                 .find_map(|neighbor| game.board.get_key_value(neighbor));
             if let Some((neighbor_hex, neighbor_piece)) = dest_neighbor {

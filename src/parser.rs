@@ -112,14 +112,18 @@ pub fn parse_move_string(input: &str, board: &HashMap<Hex, Piece>, stacks: &Hash
     let mut tokens = input.split_whitespace();
     let piece = parse_piece_string(tokens.next().ok_or("empty input")?)?;
     if let Some(dest_str) = tokens.next() {
-        let (dest_piece, dir, side) = match dest_str.chars().nth(0) {
+        let (dest_piece, direction) = match dest_str.chars().nth(0) {
             Some('w') | Some('b') => {
-                let (piece_str, dest_str) = dest_str.split_at(dest_str.len() - 1);
-                (parse_piece_string(piece_str)?, dest_str, "east")
+                if dest_str.contains(|c| c == '-' || c == '/' || c == '\\') {
+                    let (piece_str, dest_str) = dest_str.split_at(dest_str.len() - 1);
+                    (parse_piece_string(piece_str)?, Some(("east", dest_str)))
+                } else {
+                    (parse_piece_string(dest_str)?, None)
+                }
             },
             _ => {
                 let (dest_str, piece_str) = dest_str.split_at(1);
-                (parse_piece_string(piece_str)?, dest_str, "west")
+                (parse_piece_string(piece_str)?, Some(("west", dest_str)))
             },
         };
         let target_hex = board.iter()
@@ -127,14 +131,15 @@ pub fn parse_move_string(input: &str, board: &HashMap<Hex, Piece>, stacks: &Hash
             .or_else(|| stacks.iter()
                 .find_map(|(&key, stack)| if stack.contains(&dest_piece) { Some(key) } else { None }))
             .ok_or(format!("target piece not present on board: {:?}", piece))?;
-        let dest_hex = match (side, dir) {
-            ("east", "-") => target_hex.e(),
-            ("east", "/") => target_hex.ne(),
-            ("east", "\\") => target_hex.se(),
-            ("west", "-") => target_hex.w(),
-            ("west", "/") => target_hex.sw(),
-            ("west", "\\") => target_hex.nw(),
-            (_, c) => return Err(format!("unrecognized direction {}", c).into()),
+        let dest_hex = match direction {
+            Some(("east", "-")) => target_hex.e(),
+            Some(("east", "/")) => target_hex.ne(),
+            Some(("east", "\\")) => target_hex.se(),
+            Some(("west", "-")) => target_hex.w(),
+            Some(("west", "/")) => target_hex.sw(),
+            Some(("west", "\\")) => target_hex.nw(),
+            Some((_, c)) => return Err(format!("unrecognized direction {}", c).into()),
+            None => target_hex,
         };
         if board.values().find(|&&board_piece| piece == board_piece).is_some() {
             Ok(Turn::Move(piece, dest_hex))
@@ -193,6 +198,17 @@ mod tests {
         assert!(parse_move_string("wwQ", &board, &stacks).is_err());
         assert!(parse_move_string("wQ foo", &board, &stacks).is_err());
         assert!(parse_move_string("wQ -bQ2", &board, &stacks).is_err());
+    }
+
+    #[test]
+    fn test_stacking_moves() {
+        let board: HashMap<Hex, Piece> = HashMap::from_iter(vec![
+            (ORIGIN, Piece::new(Queen, White)),
+            (ORIGIN.w(), Piece::new(Beetle, Black)),
+        ].iter().cloned());
+        let stacks = HashMap::new();
+
+        assert_eq!(parse_move_string("bB1 wQ", &board, &stacks), Ok(Turn::Move(Piece::new(Beetle, Black), ORIGIN)));
     }
 
     #[test]
