@@ -82,7 +82,11 @@ impl GameState {
                 .flat_map(|(&start, &piece)| self.get_piece_moves(piece, start)));
         }
 
-        return moves;
+        if moves.len() == 0 {
+            vec![Turn::Pass]
+        } else {
+            moves
+        }
     }
 
     fn get_piece_moves(&self, piece: Piece, start: Hex) -> Vec<Turn> {

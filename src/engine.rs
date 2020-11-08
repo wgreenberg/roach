@@ -178,16 +178,27 @@ impl Engine {
 
     pub fn handle_command(&mut self, input: &str) -> String {
         match input {
-            newgame if newgame.starts_with("newgame") => self.handle_newgame(newgame).into(),
-            play if play.starts_with("play ") => self.handle_turn(play).into(),
+            cmd if cmd.starts_with("newgame") => self.handle_newgame(cmd).into(),
+            cmd if cmd.starts_with("play ") => self.handle_turn(cmd).into(),
             "pass" => self.handle_turn("play pass").into(),
             "validmoves" => self.get_valid_moves().into(),
             "undo" => self.handle_undo("undo 1").into(),
-            undo if undo.starts_with("undo ") => self.handle_undo(undo).into(),
+            cmd if cmd.starts_with("undo ") => self.handle_undo(cmd).into(),
             "options" => Output::empty(),
             "info" => self.get_info(),
+            cmd if cmd.starts_with("bestmove") => self.get_best_move(cmd).into(),
             _ => format!("unrecognized command {}", input).into(),
         }.to_string()
+    }
+
+    fn get_best_move(&self, _input: &str) -> EngineResult<String> {
+        match &self.game {
+            Some(game) => match game.get_valid_moves().first() {
+                Some(turn) => Ok(get_turn_string(turn, game)),
+                _ => Err(Error::EngineError("unable to generate valid moves".into()))
+            },
+            _ => return Err(Error::EngineError("game not created yet".into())),
+        }
     }
 
     fn handle_undo(&mut self, input: &str) -> EngineResult<String> {
