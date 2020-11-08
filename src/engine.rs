@@ -108,9 +108,7 @@ impl fmt::Display for GameState {
                 write!(f, "{};{};{};{}", self.game_type, self.status, turn, turns.join(";"))
             },
             _ => write!(f, "{};{};{}", self.game_type, self.status, turn),
-
         }
-        
     }
 }
 

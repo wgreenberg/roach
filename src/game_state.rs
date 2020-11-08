@@ -802,7 +802,7 @@ mod test {
             "bM1 /wA1", // mimic spider
             "bM1 bG1/", // mimic spider
             "bM1 wS1\\", // mimic queen
-            "bM1 bG1\\", // mimic queen 
+            "bM1 bG1\\", // mimic queen
             "bM1 bG1/", // mimic grasshopper
             "bM1 \\bQ1", // mimic grasshopper
             "bM1 -wA1", // mimic grasshopper
