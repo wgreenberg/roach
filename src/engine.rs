@@ -28,7 +28,7 @@ impl From<EngineResult<String>> for Output {
     fn from(res: EngineResult<String>) -> Self {
         match res {
             Ok(text) => Output { text: Some(text) },
-            Err(err) => Output { text: Some(format!("err {:#?}", err)) },
+            Err(err) => Output { text: Some(format!("err {:?}", err)) },
         }
     }
 }
