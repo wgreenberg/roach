@@ -159,7 +159,7 @@ impl Engine {
         } else {
             if let Some(arg) = newgame.strip_prefix("newgame ") {
                 if let Ok(game_type) = parse_game_type(arg) {
-                    self.game = Some(GameState::new_with_type(Black, game_type));
+                    self.game = Some(GameState::new_with_type(White, game_type));
                 } else if let Ok(game) = parse_game_string(arg) {
                     self.game = Some(game);
                 }
@@ -252,10 +252,10 @@ mod test {
     #[test]
     fn test_basics() {
         let mut engine = Engine::new();
-        assert_eq!(engine.handle_command("newgame Base"), "Base;NotStarted;Black[1]\nok");
-        assert_eq!(engine.handle_command("validmoves"), "bA1;bG1;bB1;bS1\nok");
-        assert!(engine.handle_command("play wQ").starts_with("err"));
-        assert_eq!(engine.handle_command("play bS1"), "Base;InProgress;White[1];bS1\nok");
+        assert_eq!(engine.handle_command("newgame Base"), "Base;NotStarted;White[1]\nok");
+        assert_eq!(engine.handle_command("validmoves"), "wA1;wG1;wB1;wS1\nok");
+        assert!(engine.handle_command("play bQ").starts_with("err"));
+        assert_eq!(engine.handle_command("play wS1"), "Base;InProgress;Black[1];wS1\nok");
     }
 
     #[test]
