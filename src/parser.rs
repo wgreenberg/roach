@@ -4,7 +4,7 @@ use crate::game_state::Player::*;
 use crate::hex::{Hex, ORIGIN};
 use crate::piece::Piece;
 use crate::piece::Bug::*;
-use std::convert::From;
+use crate::error::Error;
 use std::result::Result;
 
 // newgame -> GameString
@@ -40,24 +40,7 @@ use std::result::Result;
 // MoveString
 //   (Piece[ PieceLocation]|pass) e.g. "wS1" or "bS1 wS1/"
 
-#[derive(Debug, PartialEq)]
-pub enum Error {
-    ParserError(String),
-}
-
 pub type ParserResult<T> = Result<T, Error>;
-
-impl From<&str> for Error {
-    fn from(msg: &str) -> Self {
-        Error::ParserError(msg.into())
-    }
-}
-
-impl From<String> for Error {
-    fn from(msg: String) -> Self {
-        Error::ParserError(msg)
-    }
-}
 
 pub fn parse_game_string(input: &str) -> ParserResult<GameState> {
     let mut tokens = input.split(";");
