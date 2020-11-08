@@ -105,11 +105,27 @@ pub fn parse_game_status(input: &str) -> ParserResult<GameStatus> {
 pub fn parse_game_type(input: &str) -> ParserResult<GameType> {
     match input {
         "Base" => Ok(GameType::Base),
+        other if other.starts_with("Base+") => match other.strip_prefix("Base+") {
+            Some(expansion) => {
+                let p = expansion.contains("P");
+                let l = expansion.contains("L");
+                let m = expansion.contains("M");
+                if expansion.contains(|c| !['P', 'L', 'M'].contains(&c)) {
+                    Err(format!("unrecognized expansion {}", expansion).into())
+                } else {
+                    Ok(GameType::PLM(p, l, m))
+                }
+            },
+            _ => Err(format!("unrecognized GameType {}", other).into()),
+        },
         other => Err(format!("unrecognized GameType {}", other).into()),
     }
 }
 
 pub fn parse_move_string(input: &str, board: &HashMap<Hex, Piece>, stacks: &HashMap<Hex, Vec<Piece>>) -> ParserResult<Turn> {
+    if input == "pass" {
+        return Ok(Turn::Pass);
+    }
     let mut tokens = input.split_whitespace();
     let piece = parse_piece_string(tokens.next().ok_or("empty input")?)?;
     if let Some(dest_str) = tokens.next() {
@@ -213,5 +229,11 @@ mod tests {
     fn test_parse_game_string() {
         assert!(parse_game_string("Base;NotStarted;White[1]").is_ok());
         assert!(parse_game_string("Base;InProgress;White[3];wS1;bG1 -wS1;wA1 wS1/;bG2 /bG1").is_ok());
+    }
+
+    #[test]
+    fn test_parse_game_type() {
+        assert_eq!(parse_game_type("Base"), Ok(GameType::Base));
+        assert_eq!(parse_game_type("Base+MP"), Ok(GameType::PLM(true, false, true)));
     }
 }
