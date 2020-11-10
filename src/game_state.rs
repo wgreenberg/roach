@@ -4,7 +4,7 @@ use crate::hex::{Hex, ORIGIN};
 use self::Player::*;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GameState {
     pub unplayed_pieces: Vec<Piece>,
     pub board: HashMap<Hex, Piece>,
@@ -346,7 +346,7 @@ impl Player {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum GameStatus {
     NotStarted,
     InProgress,
