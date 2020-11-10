@@ -6,7 +6,10 @@ fn main() {
     println!("{}", engine.handle_command("info").to_string());
     loop {
         let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
-        println!("{}", engine.handle_command(input.trim()).to_string());
+        match stdin().read_line(&mut input) {
+            Ok(0) => break, // EOF
+            Ok(_) => println!("{}", engine.handle_command(input.trim()).to_string()),
+            Err(e) => eprintln!("{}", e),
+        }
     }
 }

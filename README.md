@@ -7,3 +7,8 @@ finished!
 
 Test games are in SGF, and were sourced from
 https://boardspace.net/hive/hivegames/
+
+Resources
+---------
+* https://www.aot.tu-berlin.de/fileadmin/files/lehre/diplomarbeit/BA_Barbara_Konz.pdf
+* https://www.redblobgames.com/grids/hexagons/
