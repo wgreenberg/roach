@@ -1,6 +1,7 @@
 use crate::game_state::{GameState, Player, GameType, GameStatus, Turn};
 use crate::piece::Piece;
 use crate::hex::ORIGIN;
+use crate::game_tree::GameTree;
 use crate::piece::Bug::*;
 use crate::game_state::Player::*;
 use crate::parser::*;
@@ -193,10 +194,7 @@ impl Engine {
 
     fn get_best_move(&self, _input: &str) -> EngineResult<String> {
         match &self.game {
-            Some(game) => match game.get_valid_moves().first() {
-                Some(turn) => Ok(get_turn_string(turn, game)),
-                _ => Err(Error::EngineError("unable to generate valid moves".into()))
-            },
+            Some(game) => Ok(get_turn_string(&game.find_best_action(3), game)),
             _ => return Err(Error::EngineError("game not created yet".into())),
         }
     }
