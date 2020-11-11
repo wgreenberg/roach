@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Hex {
     pub x: i64,
     pub y: i64,
@@ -36,7 +36,7 @@ impl Hex {
     }
 
     pub fn is_adj(&self, other: Hex) -> bool {
-        self.neighbors().contains(&other)
+        self.dist(other) == 1
     }
 
     // Directional neighbors
@@ -54,16 +54,18 @@ impl Hex {
     // Given a collection of hexes, return the list of unique unoccupied
     // neighboring hexes
     pub fn get_empty_neighbors(hexes: &Vec<Hex>) -> Vec<Hex> {
-        let neighbors = hexes.iter()
-            .flat_map(|hex| hex.neighbors());
-        let neighbors_set: HashSet<Hex> = HashSet::from_iter(neighbors);
-        let hexes_set = HashSet::from_iter(hexes.iter().cloned());
-        neighbors_set.difference(&hexes_set).cloned().collect()
+        let mut neighbors: Vec<Hex> = hexes.iter()
+            .flat_map(|hex| hex.neighbors())
+            .filter(|hex| !hexes.contains(hex))
+            .collect();
+        neighbors.sort_unstable();
+        neighbors.dedup();
+        neighbors
     }
 
     pub fn all_contiguous(hexes: &Vec<Hex>) -> bool {
         if hexes.len() == 0 { return false; }
-        let mut visited: HashSet<Hex> = HashSet::new();
+        let mut visited = Vec::new();
         let start = hexes[0];
         dfs(start, &hexes, &mut visited);
         visited.len() == hexes.len()
@@ -128,8 +130,8 @@ fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited
     return result;
 }
 
-fn dfs(hex: Hex, hexes: &Vec<Hex>, visited: &mut HashSet<Hex>) {
-    visited.insert(hex);
+fn dfs(hex: Hex, hexes: &Vec<Hex>, visited: &mut Vec<Hex>) {
+    visited.push(hex);
     for neighbor in hex.neighbors() {
         if hexes.contains(&neighbor) && !visited.contains(&neighbor) {
             dfs(neighbor, hexes, visited);

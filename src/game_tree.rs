@@ -25,9 +25,7 @@ pub trait GameTree: Sized {
             eval
         } else {
             let mut max_eval: Option<Evaluation<Self::Action>> = None;
-            let mut n = 0;
             for child in self.get_children() {
-                n += 1;
                 let mut child_eval = child.negamax(depth - 1, -color);
                 child_eval.score = -child_eval.score;
                 child_eval.node = child.get_node();

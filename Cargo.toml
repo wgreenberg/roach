@@ -14,3 +14,14 @@ edition = "2018"
 [[bench]]
 name = "sgf_benchmark"
 harness = false
+
+[[bench]]
+name = "hex_benchmark"
+harness = false
+
+[[bench]]
+name = "game_state_benchmark"
+harness = false
+
+[profile.release]
+debug = true
