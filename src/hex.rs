@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::iter::FromIterator;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Hex {
@@ -80,14 +79,14 @@ impl Hex {
      *      | p2|
      *       \ /
      */
-    pub fn get_pincers(&self, other: Hex) -> Option<(Hex, Hex)> {
-        if *self == other { return None; }
-        let our_neighbors: HashSet<Hex> = HashSet::from_iter(self.neighbors());
-        let their_neighbors: HashSet<Hex> = HashSet::from_iter(other.neighbors());
-        let mut mutuals = our_neighbors.intersection(&their_neighbors);
-        match (mutuals.next(), mutuals.next()) {
-            (Some(&a), Some(&b)) => Some((a, b)),
-            _ => None,
+    pub fn get_pincers(&self, other: &Hex) -> Option<(Hex, Hex)> {
+        if self.dist(other) == 1 {
+            let vec = other.sub(self);
+            let p1 = Hex::new(-vec.z, -vec.x, -vec.y);
+            let p2 = Hex::new(-vec.y, -vec.z, -vec.x);
+            Some((self.add(&p1), self.add(&p2)))
+        } else {
+            None
         }
     }
 
@@ -115,7 +114,7 @@ fn dfs_with_gate_checks(hex: Hex, hexes: &Vec<Hex>, barriers: &Vec<Hex>, visited
     for neighbor in hex.neighbors() {
         if hexes.contains(&neighbor) && !visited.contains(&neighbor) {
             if barriers.len() > 0 {
-                let (pincer_a, pincer_b) = hex.get_pincers(neighbor).unwrap();
+                let (pincer_a, pincer_b) = hex.get_pincers(&neighbor).unwrap();
                 // the move is invalid if both pincers are present (too small a gap to slide in),
                 // or if neither are present (jumping a gap)
                 match (barriers.contains(&pincer_a), barriers.contains(&pincer_b)) {
@@ -246,10 +245,10 @@ mod tests {
 
     #[test]
     fn test_get_pincers() {
-        assert_eq!(ORIGIN.get_pincers(ORIGIN), None);
-        let p = ORIGIN.get_pincers(ORIGIN.e());
+        assert_eq!(ORIGIN.get_pincers(&ORIGIN), None);
+        let p = ORIGIN.get_pincers(&ORIGIN.e());
         assert!(p == Some((ORIGIN.se(), ORIGIN.ne())) || p == Some((ORIGIN.ne(), ORIGIN.se())));
-        let p = ORIGIN.get_pincers(ORIGIN.nw());
+        let p = ORIGIN.get_pincers(&ORIGIN.nw());
         assert!(p == Some((ORIGIN.w(), ORIGIN.ne())) || p == Some((ORIGIN.ne(), ORIGIN.w())));
     }
 }
