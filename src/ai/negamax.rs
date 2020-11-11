@@ -9,7 +9,7 @@ fn max<T>(a: Evaluation<T>, b: Evaluation<T>) -> Evaluation<T> {
     if a.score >= b.score { a } else { b }
 }
 
-pub trait GameTree: Sized {
+pub trait NegamaxTree: Sized {
     type Action;
 
     fn get_children(&self) -> Vec<Self>;

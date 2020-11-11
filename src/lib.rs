@@ -8,5 +8,4 @@ pub mod sgf_parser;
 pub mod test_utils;
 pub mod engine;
 pub mod error;
-pub mod game_tree;
 pub mod ai;

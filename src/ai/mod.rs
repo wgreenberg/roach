@@ -1,10 +1,12 @@
-use crate::game_tree::{GameTree, Evaluation};
+pub mod negamax;
+
+use crate::ai::negamax::{NegamaxTree, Evaluation};
 use crate::game_state::{GameState, Turn, GameStatus, Player};
 
 const PLAYER_A: Player = Player::Black; // positive eval values
 const PLAYER_B: Player = Player::White; // negative eval values
 
-impl GameTree for GameState {
+impl NegamaxTree for GameState {
     type Action = Turn;
 
     fn get_children(&self) -> Vec<Self> {

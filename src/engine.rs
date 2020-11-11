@@ -1,7 +1,7 @@
 use crate::game_state::{GameState, Player, GameType, GameStatus, Turn};
 use crate::piece::Piece;
 use crate::hex::ORIGIN;
-use crate::game_tree::GameTree;
+use crate::ai::negamax::NegamaxTree;
 use crate::piece::Bug::*;
 use crate::game_state::Player::*;
 use crate::parser::*;
