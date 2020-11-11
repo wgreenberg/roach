@@ -72,9 +72,9 @@ fn parse_turn(input: &str, board: &HashMap<Hex, Piece>, origin: &mut Option<Hex>
             *origin = Some(dest);
         }
         if board.values().find(|&&board_piece| piece == board_piece).is_some() {
-            Some(Turn::Move(piece, dest.sub(origin.unwrap())))
+            Some(Turn::Move(piece, dest.sub(&origin.unwrap())))
         } else {
-            Some(Turn::Place(piece, dest.sub(origin.unwrap())))
+            Some(Turn::Place(piece, dest.sub(&origin.unwrap())))
         }
     } else if input.contains("pass") {
         Some(Turn::Pass)

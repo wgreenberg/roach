@@ -23,7 +23,7 @@ pub fn draw_board(game: &GameState) {
     use std::cmp;
     let pieces: Vec<(&Hex, &Piece)> = game.board.iter().collect();
     let radius = pieces.iter().fold(8, |max, (hex, _)| {
-        cmp::max(max, ORIGIN.dist(**hex))
+        cmp::max(max, ORIGIN.dist(*hex))
     });
     for i in -radius..radius {
         if i % 2 == 0 {

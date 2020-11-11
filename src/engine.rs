@@ -84,7 +84,7 @@ fn get_turn_string(turn: &Turn, game: &GameState) -> String {
             let dest_neighbor = hex.neighbors().iter()
                 .find_map(|neighbor| game.board.get_key_value(neighbor));
             if let Some((neighbor_hex, neighbor_piece)) = dest_neighbor {
-                match hex.sub(*neighbor_hex) {
+                match hex.sub(neighbor_hex) {
                     s if s == ORIGIN.w() => format!("{} -{}", target, neighbor_piece),
                     s if s == ORIGIN.nw() => format!("{} \\{}", target, neighbor_piece),
                     s if s == ORIGIN.sw() => format!("{} /{}", target, neighbor_piece),
@@ -194,7 +194,7 @@ impl Engine {
 
     fn get_best_move(&self, _input: &str) -> EngineResult<String> {
         match &self.game {
-            Some(game) => Ok(get_turn_string(&game.find_best_action(3), game)),
+            Some(game) => Ok(get_turn_string(&game.find_best_action(5), game)),
             _ => return Err(Error::EngineError("game not created yet".into())),
         }
     }

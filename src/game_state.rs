@@ -56,13 +56,12 @@ impl GameState {
         // start with the set of piece placements
         moves.extend(self.get_placeable_pieces().iter()
             .flat_map(|piece| open_hexes.iter()
-                .filter(|&&hex| {
+                .filter(|&hex| {
                     // If past turn 2, filter out any hexes adjacent to enemy pieces
                     if self.turn_no() > 2 {
-                        let is_adjacent_to_enemies = self.board.iter()
+                        self.board.iter()
                             .filter(|(_, board_piece)| board_piece.owner != self.current_player)
-                            .fold(false, |acc, (enemy_hex, _)| acc || enemy_hex.is_adj(hex));
-                        !is_adjacent_to_enemies
+                            .all(|(enemy_hex, _)| !enemy_hex.is_adj(hex))
                     } else { true }
                 })
                 .map(move |hex| Turn::Place(piece.clone(), hex.clone()))));
@@ -79,7 +78,7 @@ impl GameState {
                     Some(Turn::Move(moved_piece, _)) => piece != *moved_piece,
                     _ => true,
                 })
-                .flat_map(|(&start, &piece)| self.get_piece_moves(piece, start)));
+                .flat_map(|(start, piece)| self.get_piece_moves(piece, start)));
         }
 
         if moves.len() == 0 {
@@ -89,7 +88,7 @@ impl GameState {
         }
     }
 
-    fn get_piece_moves(&self, piece: Piece, start: Hex) -> Vec<Turn> {
+    fn get_piece_moves(&self, piece: &Piece, start: &Hex) -> Vec<Turn> {
         // setup a version of the board where this piece is gone (i.e. picked up)
         let mut board_without_piece = self.board.clone();
         board_without_piece.remove(&start);
@@ -98,7 +97,7 @@ impl GameState {
         if let Some(stack) = self.stacks.get(&start) {
             if let Some(&under) = stack.last() {
                 on_hive = true;
-                board_without_piece.insert(start, under);
+                board_without_piece.insert(*start, under);
             }
         }
 
@@ -122,7 +121,7 @@ impl GameState {
 
         match piece.bug {
             Ant => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, None).iter()
-                .map(|&end| Turn::Move(piece, end))
+                .map(|end| Turn::Move(*piece, *end))
                 .collect(),
             Beetle => {
                 // if a beetle's on the hive, it's not restricted by anything except its move
@@ -131,42 +130,42 @@ impl GameState {
                 let barriers = if on_hive { &empty } else { &pieces_after_pickup };
                 start.pathfind(&spaces_after_pickup, barriers, Some(1)).iter()
                     .chain(start.pathfind(&pieces_after_pickup, &vec![], Some(1)).iter())
-                    .map(|&end| Turn::Move(piece, end))
+                    .map(|end| Turn::Move(*piece, *end))
                     .collect()
             },
             Queen => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
-                .map(|&end| Turn::Move(piece, end))
+                .map(|end| Turn::Move(*piece, *end))
                 .collect(),
             Spider => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(3)).iter()
-                .map(|&end| Turn::Move(piece, end))
+                .map(|end| Turn::Move(*piece, *end))
                 .collect(),
             Grasshopper => start.neighbors().iter()
                 .filter(|neighbor| self.board.contains_key(neighbor)) // only hop over adjacent pieces
                 .map(|neighbor| {
                     // given a direction to hop, keep looking in that direction until we find
                     // an open hex
-                    let direction = neighbor.sub(start);
+                    let direction = neighbor.sub(&start);
                     let mut travel = direction;
-                    while self.board.contains_key(&neighbor.add(travel)) {
-                        travel = travel.add(direction);
+                    while self.board.contains_key(&neighbor.add(&travel)) {
+                        travel = travel.add(&direction);
                     }
-                    Turn::Move(piece, neighbor.add(travel))
+                    Turn::Move(*piece, neighbor.add(&travel))
                 })
                 .collect(),
             Pillbug => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
-                .map(|&end| Turn::Move(piece, end))
+                .map(|end| Turn::Move(*piece, *end))
                 .chain(self.get_pillbug_tosses(start))
                 .collect(),
             Ladybug => start.pathfind(&pieces_after_pickup, &vec![], Some(2)).iter()
                 .flat_map(|on_hive| on_hive.neighbors().iter()
                     .filter(|neighbor| !self.board.contains_key(neighbor))
-                    .map(|&end| Turn::Move(piece, end)).collect::<Vec<Turn>>())
+                    .map(|end| Turn::Move(*piece, *end)).collect::<Vec<Turn>>())
                 .collect(),
             Mosquito => {
                 if on_hive {
-                    self.get_piece_moves(Piece::new(Beetle, piece.owner), start).iter()
+                    self.get_piece_moves(&Piece::new(Beetle, piece.owner), start).iter()
                         .map(|&turn| match turn {
-                            Turn::Move(_, dest) => Turn::Move(piece, dest),
+                            Turn::Move(_, dest) => Turn::Move(*piece, dest),
                             _ => unreachable!(),
                         }).collect::<Vec<Turn>>()
                 } else {
@@ -180,14 +179,14 @@ impl GameState {
                             // results of self.get_piece_moves(...)
                             if neighbor_piece.bug == Pillbug {
                                 start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
-                                    .map(|&end| Turn::Move(piece, end))
+                                    .map(|end| Turn::Move(*piece, *end))
                                     .chain(self.get_pillbug_tosses(start))
                                     .collect()
                             } else {
                                 // for normal moves, overwrite the piece value with our mosquito
-                                self.get_piece_moves(neighbor_piece, start).iter()
+                                self.get_piece_moves(&neighbor_piece, start).iter()
                                     .map(|&turn| match turn {
-                                        Turn::Move(_, dest) => Turn::Move(piece, dest),
+                                        Turn::Move(_, dest) => Turn::Move(*piece, dest),
                                         _ => unreachable!(),
                                     }).collect::<Vec<Turn>>()
                             }
@@ -198,7 +197,7 @@ impl GameState {
         }
     }
 
-    fn get_pillbug_tosses(&self, hex: Hex) -> Vec<Turn> {
+    fn get_pillbug_tosses(&self, hex: &Hex) -> Vec<Turn> {
         let (neighbors, empty): (Vec<Hex>, Vec<Hex>) = hex.neighbors().iter()
             .partition(|hex| self.board.contains_key(hex));
         neighbors.iter()
@@ -249,10 +248,10 @@ impl GameState {
             .collect()
     }
 
-    fn get_hex_for_piece(&self, piece: Piece) -> Option<Hex> {
+    fn get_hex_for_piece(&self, piece: &Piece) -> Option<Hex> {
         // first check the board, then check underneath any stacks
         self.board.iter()
-            .find_map(|(&hex, &board_piece)| if board_piece == piece { Some(hex) } else { None })
+            .find_map(|(&hex, board_piece)| if board_piece == piece { Some(hex) } else { None })
             .or_else(|| self.stacks.iter()
                 .find_map(|(&hex, stack)| if stack.contains(&piece) { Some(hex) } else { None }))
     }
@@ -277,7 +276,7 @@ impl GameState {
                 self.unplayed_pieces.retain(|&p| p != piece);
             },
             Turn::Move(piece, dest) => {
-                let from = self.get_hex_for_piece(piece).unwrap();
+                let from = self.get_hex_for_piece(&piece).unwrap();
                 assert!(self.board.remove(&from).is_some());
                 // if this piece is uncovering something in a stack, move it onto the board
                 if let Some(stack) = self.stacks.get_mut(&from) {
@@ -298,7 +297,7 @@ impl GameState {
         // check for win condition
         let mut num_wins = 0;
         for color in [White, Black].iter() {
-            if let Some(queen) = self.get_hex_for_piece(Piece::new(Queen, *color)) {
+            if let Some(queen) = self.get_hex_for_piece(&Piece::new(Queen, *color)) {
                 let n_neighbors = queen.neighbors().iter()
                     .filter(|hex| self.board.contains_key(hex)).count();
                 if n_neighbors == 6 {

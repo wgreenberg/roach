@@ -20,32 +20,32 @@ impl Hex {
         Hex { x, y, z }
     }
 
-    pub fn add(&self, other: Hex) -> Hex {
+    pub fn add(&self, other: &Hex) -> Hex {
         Hex { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
     }
 
-    pub fn sub(&self, other: Hex) -> Hex {
+    pub fn sub(&self, other: &Hex) -> Hex {
         Hex { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
     }
 
-    pub fn dist(&self, other: Hex) -> i64 {
+    pub fn dist(&self, other: &Hex) -> i64 {
         let dx = (self.x - other.x).abs();
         let dy = (self.y - other.y).abs();
         let dz = (self.z - other.z).abs();
         (dx + dy + dz) / 2
     }
 
-    pub fn is_adj(&self, other: Hex) -> bool {
+    pub fn is_adj(&self, other: &Hex) -> bool {
         self.dist(other) == 1
     }
 
     // Directional neighbors
-    pub fn ne(&self)-> Hex { self.add(Hex::new(1, 0, -1)) }
-    pub fn nw(&self)-> Hex { self.add(Hex::new(0, 1, -1)) }
-    pub fn se(&self)-> Hex { self.add(Hex::new(0, -1, 1)) }
-    pub fn sw(&self)-> Hex { self.add(Hex::new(-1, 0, 1)) }
-    pub fn e(&self) -> Hex { self.add(Hex::new(1, -1, 0)) }
-    pub fn w(&self) -> Hex { self.add(Hex::new(-1, 1, 0)) }
+    pub fn ne(&self)-> Hex { self.add(&Hex::new(1, 0, -1)) }
+    pub fn nw(&self)-> Hex { self.add(&Hex::new(0, 1, -1)) }
+    pub fn se(&self)-> Hex { self.add(&Hex::new(0, -1, 1)) }
+    pub fn sw(&self)-> Hex { self.add(&Hex::new(-1, 0, 1)) }
+    pub fn e(&self) -> Hex { self.add(&Hex::new(1, -1, 0)) }
+    pub fn w(&self) -> Hex { self.add(&Hex::new(-1, 1, 0)) }
 
     pub fn neighbors(&self) -> Vec<Hex> {
         vec![self.ne(), self.nw(), self.se(), self.sw(), self.e(), self.w()]
@@ -155,13 +155,13 @@ mod tests {
     #[test]
     fn test_dist() {
         for neighbor in ORIGIN.neighbors() {
-            assert_eq!(ORIGIN.dist(neighbor), 1);
+            assert_eq!(ORIGIN.dist(&neighbor), 1);
         }
 
         let mut inner_ring = ORIGIN.neighbors();
         inner_ring.push(ORIGIN);
         for neighbor in Hex::get_empty_neighbors(&inner_ring) {
-            assert_eq!(ORIGIN.dist(neighbor), 2);
+            assert_eq!(ORIGIN.dist(&neighbor), 2);
         }
     }
 
