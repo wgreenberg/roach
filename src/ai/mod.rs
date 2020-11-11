@@ -54,26 +54,24 @@ impl NegamaxTree for GameState {
 impl MonteCarloSearchable for GameState {
     type Action = Turn;
 
-    fn simulate(&self) -> f64 {
+    fn simulate(&self, max_depth: usize) -> f64 {
         let mut simulation = self.clone();
         let mut rng = thread_rng();
         let mut n_turns = 0;
-        loop {
-            if n_turns > 100 {
-                return 0.0;
+        let result = loop {
+            if n_turns > max_depth {
+                break 0.0;
             }
             match simulation.get_terminal_value() {
-                Some(reward) => {
-                    return reward;
-                }
+                Some(reward) => break reward,
                 _ => {},
             }
             let choices = simulation.get_valid_moves();
             let turn = choices.choose(&mut rng);
             simulation.submit_turn_unchecked(*turn.unwrap());
             n_turns += 1;
-        }
-        unreachable!();
+        };
+        result
     }
 
     fn get_terminal_value(&self) -> Option<f64> {

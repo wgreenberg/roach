@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+const N_ITERATIONS: usize = 100;
 // how deep we're willing to go down a tree before bailing out (resulting in a draw)
 const MAX_DEPTH: usize = 100;
 const EXPLORATION_COEFF: f64 = 2.0;
@@ -56,7 +57,7 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
     }
 
     pub fn find_best_action(&mut self) -> T::Action {
-        for _ in 0..100 {
+        for _ in 0..N_ITERATIONS {
             let v = self.select(0);
             let reward = self.simulate(v);
             self.backup(v, reward);
@@ -106,7 +107,7 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
     }
 
     fn simulate(&mut self, node: usize) -> f64 {
-        self.arena[node].game.simulate()
+        self.arena[node].game.simulate(MAX_DEPTH)
     }
 
     fn backup(&mut self, node: usize, score: f64) {
@@ -124,7 +125,7 @@ pub trait MonteCarloSearchable: Clone + Debug {
     type Action: Debug;
 
     // simulate a random walk from this state and return the score
-    fn simulate(&self) -> f64;
+    fn simulate(&self, max_depth: usize) -> f64;
     // Some(reward) if the game is over, None if we can keep playing
     fn get_terminal_value(&self) -> Option<f64>;
     fn get_possible_actions(&self) -> Vec<Self::Action>;
