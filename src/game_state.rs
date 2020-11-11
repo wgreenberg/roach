@@ -106,6 +106,8 @@ impl GameState {
         if !Hex::all_contiguous(&pieces_after_pickup) {
             // but if this is a pillbug (or a mosquito imitating a pillbug), just return the pieces
             // it can toss
+            // TODO this doesn't cover e.g. Black tosses their Queen and White tries to toss the
+            // same Queen
             match piece.bug {
                 Pillbug => return self.get_pillbug_tosses(start),
                 Mosquito => return start.neighbors().iter()
@@ -123,6 +125,7 @@ impl GameState {
             Ant => start.pathfind(&spaces_after_pickup, &pieces_after_pickup, None).iter()
                 .map(|end| Turn::Move(*piece, *end))
                 .collect(),
+            // TODO: add exception for stacked pincers
             Beetle => {
                 // if a beetle's on the hive, it's not restricted by anything except its move
                 // speed; if it's not, consider pieces to be barriers like normal
@@ -156,6 +159,7 @@ impl GameState {
                 .map(|end| Turn::Move(*piece, *end))
                 .chain(self.get_pillbug_tosses(start))
                 .collect(),
+            // TODO: add exception for stacked pincers
             Ladybug => start.pathfind(&pieces_after_pickup, &vec![], Some(2)).iter()
                 .flat_map(|on_hive| on_hive.neighbors().iter()
                     .filter(|neighbor| !self.board.contains_key(neighbor))
