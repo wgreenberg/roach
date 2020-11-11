@@ -1,6 +1,10 @@
 pub mod negamax;
+pub mod mcts;
 
+use rand::thread_rng;
+use rand::seq::SliceRandom;
 use crate::ai::negamax::{NegamaxTree, Evaluation};
+use crate::ai::mcts::MonteCarloSearchable;
 use crate::game_state::{GameState, Turn, GameStatus, Player};
 
 const PLAYER_A: Player = Player::Black; // positive eval values
@@ -44,5 +48,51 @@ impl NegamaxTree for GameState {
             Player::Black => true,
             Player::White => false,
         }
+    }
+}
+
+impl MonteCarloSearchable for GameState {
+    type Action = Turn;
+
+    fn simulate(&self) -> f64 {
+        let mut simulation = self.clone();
+        let mut rng = thread_rng();
+        let mut n_turns = 0;
+        loop {
+            if n_turns > 100 {
+                return 0.0;
+            }
+            match simulation.get_terminal_value() {
+                Some(reward) => {
+                    return reward;
+                }
+                _ => {},
+            }
+            let choices = simulation.get_valid_moves();
+            let turn = choices.choose(&mut rng);
+            simulation.submit_turn_unchecked(*turn.unwrap());
+            n_turns += 1;
+        }
+        unreachable!();
+    }
+
+    fn get_terminal_value(&self) -> Option<f64> {
+        match self.status {
+            GameStatus::Draw => Some(0.0),
+            GameStatus::Win(Player::Black) => Some(1.0),
+            GameStatus::Win(Player::White) => Some(-1.0),
+            _ => None
+        }
+    }
+    fn get_possible_actions(&self) -> Vec<Self::Action> {
+        self.get_valid_moves()
+    }
+    fn get_last_action(&self) -> Option<Self::Action> {
+        self.turns.last().cloned()
+    }
+    fn apply_action(&self, action: Self::Action) -> Self {
+        let mut clone = self.clone();
+        clone.submit_turn(action).expect("failed to submit turn");
+        clone
     }
 }

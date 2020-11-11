@@ -2,6 +2,7 @@ use crate::game_state::{GameState, Player, GameType, GameStatus, Turn};
 use crate::piece::Piece;
 use crate::hex::ORIGIN;
 use crate::ai::negamax::NegamaxTree;
+use crate::ai::mcts::MonteCarloSearchable;
 use crate::piece::Bug::*;
 use crate::game_state::Player::*;
 use crate::parser::*;
@@ -194,7 +195,7 @@ impl Engine {
 
     fn get_best_move(&self, _input: &str) -> EngineResult<String> {
         match &self.game {
-            Some(game) => Ok(get_turn_string(&game.find_best_action(5), game)),
+            Some(game) => Ok(get_turn_string(&game.find_best_action_mcts(), game)),
             _ => return Err(Error::EngineError("game not created yet".into())),
         }
     }

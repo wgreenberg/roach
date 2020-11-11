@@ -38,7 +38,7 @@ pub trait NegamaxTree: Sized {
         }
     }
 
-    fn find_best_action(&self, depth: usize) -> Self::Action {
+    fn find_best_action_negamax(&self, depth: usize) -> Self::Action {
         if self.is_player_a_up() {
             self.negamax(depth, 1).node
         } else {

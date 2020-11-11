@@ -260,16 +260,7 @@ impl GameState {
                 .find_map(|(&hex, stack)| if stack.contains(&piece) { Some(hex) } else { None }))
     }
 
-    pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
-        match self.status {
-            GameStatus::Win(_) | GameStatus::Draw => return Err(TurnError::GameOver),
-            _ => {},
-        };
-
-        if turn != Turn::Pass && !self.get_valid_moves().contains(&turn) {
-            return Err(TurnError::InvalidMove)
-        }
-
+    pub fn submit_turn_unchecked(&mut self, turn: Turn) {
         if self.status == GameStatus::NotStarted {
             self.status = GameStatus::InProgress;
         }
@@ -313,6 +304,19 @@ impl GameState {
         if num_wins == 2 {
             self.status = GameStatus::Draw;
         }
+    }
+
+    pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
+        match self.status {
+            GameStatus::Win(_) | GameStatus::Draw => return Err(TurnError::GameOver),
+            _ => {},
+        };
+
+        if turn != Turn::Pass && !self.get_valid_moves().contains(&turn) {
+            return Err(TurnError::InvalidMove)
+        }
+
+        self.submit_turn_unchecked(turn);
         Ok(())
     }
 }
