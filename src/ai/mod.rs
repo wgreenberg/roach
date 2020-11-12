@@ -82,12 +82,18 @@ impl MonteCarloSearchable for GameState {
             _ => None
         }
     }
+
     fn get_possible_actions(&self) -> Vec<Self::Action> {
-        self.get_valid_moves()
+        let mut rng = thread_rng();
+        let mut moves = self.get_valid_moves();
+        moves.shuffle(&mut rng);
+        moves
     }
+
     fn get_last_action(&self) -> Option<Self::Action> {
         self.turns.last().cloned()
     }
+
     fn apply_action(&self, action: Self::Action) -> Self {
         let mut clone = self.clone();
         clone.submit_turn(action).expect("failed to submit turn");
