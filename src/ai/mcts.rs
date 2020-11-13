@@ -82,7 +82,6 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
         best_child.unwrap()
     }
 
-    // TreePolicy
     fn select(&mut self, node: usize) -> usize {
         let mut v = node;
         while !self.arena[v].is_terminal() {
@@ -106,7 +105,7 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
         new_idx
     }
 
-    fn simulate(&mut self, node: usize) -> f64 {
+    fn simulate(&self, node: usize) -> f64 {
         self.arena[node].game.simulate(MAX_DEPTH)
     }
 
