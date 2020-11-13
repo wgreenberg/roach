@@ -234,6 +234,8 @@ impl GameState {
                 Some(Turn::Move(_, hex)) => hex != *neighbor,
                 _ => true,
             })
+            // can't toss pices on a stack
+            .filter(|neighbor| self.stacks.get(neighbor).map_or(true, |stack| stack.len() == 0))
             .filter(|neighbor| {
                 // check if this neighbor can be moved w/o violating the One Hive Rule
                 let mut board_without_neighbor = self.board.clone();
@@ -770,11 +772,20 @@ mod test {
         ]);
         // make sure the pillbug can only move normally, since the white Spider just moved and
         // thus cannot be pillbug'd
-        assert_valid_movements(&game, vec![
+        assert_piece_movements(&game, "bP1", vec![
             "bP1 wS1\\",
             "bP1 bQ1-",
-            "bS1 bP1\\",
-            "bS1 -wQ1",
+        ]);
+        play_and_verify(&mut game, vec![
+            "bB1 bP1/",
+            "wB1 /wS1",
+            "bB1 bQ1",
+            "wB1 wS1",
+        ]);
+        // again, the pillbug can only move normally because the two adjacent pieces are stacks
+        assert_piece_movements(&game, "bP1", vec![
+            "bP1 wB1\\",
+            "bP1 bB1-",
         ]);
     }
 
