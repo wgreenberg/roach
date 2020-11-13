@@ -88,6 +88,30 @@ impl GameState {
         }
     }
 
+    fn check_one_hive_rule(&self, board: &Vec<Hex>, piece: &Hex) -> bool {
+        // before we do an expensive call to Hex::all_contiguous, check if this hex has only one
+        // group of contiguous neighbors -- if so, we can easily say it doesn't violate the rule
+        let mut group = false;
+        let mut n_flips = 0;
+        for (i, neighbor) in piece.neighbors().iter().enumerate() {
+            if self.board.contains_key(neighbor) {
+                if !group {
+                    group = true;
+                    if i > 0 {
+                        n_flips += 1;
+                    }
+                }
+            } else if group {
+                group = false;
+                n_flips += 1;
+            }
+        }
+        if n_flips <= 2 {
+            return true;
+        }
+        Hex::all_contiguous(&board)
+    }
+
     fn get_piece_moves(&self, piece: &Piece, start: &Hex) -> Vec<Turn> {
         // setup a version of the board where this piece is gone (i.e. picked up)
         let mut board_without_piece = self.board.clone();
@@ -103,7 +127,7 @@ impl GameState {
 
         // check if removing this piece breaks the One Hive Rule
         let pieces_after_pickup = board_without_piece.keys().cloned().collect();
-        if !Hex::all_contiguous(&pieces_after_pickup) {
+        if !on_hive && !self.check_one_hive_rule(&pieces_after_pickup, start) {
             // but if this is a pillbug (or a mosquito imitating a pillbug), just return the pieces
             // it can toss
             // TODO this doesn't cover e.g. Black tosses their Queen and White tries to toss the
@@ -216,7 +240,7 @@ impl GameState {
                 board_without_neighbor.remove(neighbor);
                 let pieces_without_neighbor = board_without_neighbor.keys().cloned().collect();
                 // TODO: add exception for stacked pincers
-                Hex::all_contiguous(&pieces_without_neighbor)
+                self.check_one_hive_rule(&pieces_without_neighbor, neighbor)
             })
             .flat_map(|neighbor| {
                 let neighbor_piece = self.board.get(neighbor).unwrap();

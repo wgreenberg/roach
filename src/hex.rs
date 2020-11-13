@@ -47,7 +47,7 @@ impl Hex {
     pub fn w(&self) -> Hex { self.add(&Hex::new(-1, 1, 0)) }
 
     pub fn neighbors(&self) -> Vec<Hex> {
-        vec![self.ne(), self.nw(), self.se(), self.sw(), self.e(), self.w()]
+        vec![self.ne(), self.e(), self.se(), self.sw(), self.w(), self.nw()]
     }
 
     // Given a collection of hexes, return the list of unique unoccupied
