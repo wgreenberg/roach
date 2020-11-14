@@ -278,7 +278,7 @@ impl GameState {
             .collect()
     }
 
-    fn get_hex_for_piece(&self, piece: &Piece) -> Option<Hex> {
+    pub fn get_hex_for_piece(&self, piece: &Piece) -> Option<Hex> {
         // first check the board, then check underneath any stacks
         self.board.iter()
             .find_map(|(&hex, board_piece)| if board_piece == piece { Some(hex) } else { None })

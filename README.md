@@ -12,3 +12,4 @@ Resources
 ---------
 * https://www.aot.tu-berlin.de/fileadmin/files/lehre/diplomarbeit/BA_Barbara_Konz.pdf
 * https://www.redblobgames.com/grids/hexagons/
+* https://www.davidsilver.uk/wp-content/uploads/2020/03/mcrave-1.pdf

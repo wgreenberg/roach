@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 const N_ITERATIONS: usize = 100;
 // how deep we're willing to go down a tree before bailing out (resulting in a draw)
-const MAX_DEPTH: usize = 100;
+const MAX_DEPTH: usize = 170;
 const EXPLORATION_COEFF: f64 = 2.0;
 
 #[derive(Debug)]
@@ -97,7 +97,7 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
     fn expand(&mut self, node: usize) -> usize{
         let new_idx = self.arena.len();
         let v = &mut self.arena[node];
-        let next_unexplored_action = v.unexplored_actions.pop().unwrap();
+        let next_unexplored_action = v.game.select_action(&v.unexplored_actions);
         let new_game_state = v.game.apply_action(next_unexplored_action);
         let new_child = StatsNode::new(new_idx, new_game_state, Some(node));
         v.children.push(new_idx);
@@ -130,6 +130,7 @@ pub trait MonteCarloSearchable: Clone + Debug {
     fn get_possible_actions(&self) -> Vec<Self::Action>;
     fn get_last_action(&self) -> Option<Self::Action>;
     fn apply_action(&self, action: Self::Action) -> Self;
+    fn select_action(&self, actions: &Vec<Self::Action>) -> Self::Action;
 
     fn find_best_action_mcts(&self) -> Self::Action {
         let mut tree = MCSearchTree::new(self.clone());
