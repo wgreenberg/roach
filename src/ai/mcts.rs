@@ -1,9 +1,21 @@
 use std::fmt::Debug;
 
-const N_ITERATIONS: usize = 100;
-// how deep we're willing to go down a tree before bailing out (resulting in a draw)
-const MAX_DEPTH: usize = 170;
-const EXPLORATION_COEFF: f64 = 2.0;
+#[derive(Debug, Copy, Clone)]
+pub struct MCTSOptions {
+    pub max_depth: usize,
+    pub exploration_coefficient: f64,
+    pub n_iterations: usize,
+}
+
+impl Default for MCTSOptions {
+    fn default() -> Self {
+        MCTSOptions {
+            max_depth: 170, // mentioned in Konz (2012)
+            exploration_coefficient: 2.0, // default for UCB1
+            n_iterations: 100,
+        }
+    }
+}
 
 #[derive(Debug)]
 struct StatsNode<T> where T: MonteCarloSearchable {
@@ -47,17 +59,19 @@ impl<T> StatsNode<T> where T: MonteCarloSearchable + Debug {
 #[derive(Debug)]
 struct MCSearchTree<T> where T: MonteCarloSearchable {
     arena: Vec<StatsNode<T>>,
+    options: MCTSOptions,
 }
 
 impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
-    fn new(game: T) -> Self {
+    fn new(game: T, options: MCTSOptions) -> Self {
         MCSearchTree {
             arena: vec![StatsNode::new(0, game, None)],
+            options: options,
         }
     }
 
     pub fn find_best_action(&mut self) -> T::Action {
-        for _ in 0..N_ITERATIONS {
+        for _ in 0..self.options.n_iterations {
             let v = self.select(0);
             let reward = self.simulate(v);
             self.backup(v, reward);
@@ -73,7 +87,7 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
             let v = &self.arena[v_i];
             let exploitation = v.total_score / (v.n_visits as f64);
             let exploration = (2.0 * (v.n_visits as f64).ln()) / (v.n_visits + 1) as f64;
-            let ucp = exploitation + EXPLORATION_COEFF * exploration;
+            let ucp = exploitation + self.options.exploration_coefficient * exploration;
             if ucp > max_ucp {
                 max_ucp = ucp;
                 best_child = Some(v_i);
@@ -106,7 +120,7 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
     }
 
     fn simulate(&self, node: usize) -> f64 {
-        self.arena[node].game.simulate(MAX_DEPTH)
+        self.arena[node].game.simulate(self.options.max_depth)
     }
 
     fn backup(&mut self, node: usize, score: f64) {
@@ -132,8 +146,8 @@ pub trait MonteCarloSearchable: Clone + Debug {
     fn apply_action(&self, action: Self::Action) -> Self;
     fn select_action(&self, actions: &Vec<Self::Action>) -> Self::Action;
 
-    fn find_best_action_mcts(&self) -> Self::Action {
-        let mut tree = MCSearchTree::new(self.clone());
+    fn find_best_action_mcts(&self, options: MCTSOptions) -> Self::Action {
+        let mut tree = MCSearchTree::new(self.clone(), options);
         tree.find_best_action()
     }
 }

@@ -4,13 +4,37 @@ pub mod mcts;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
 use crate::ai::negamax::{NegamaxTree, Evaluation};
-use crate::ai::mcts::MonteCarloSearchable;
+use crate::ai::mcts::{MonteCarloSearchable, MCTSOptions};
 use crate::game_state::{GameState, Turn, GameStatus, Player};
 use crate::hex::Hex;
 use crate::piece::{Bug, Piece};
 
 const PLAYER_A: Player = Player::Black; // positive eval values
 const PLAYER_B: Player = Player::White; // negative eval values
+
+#[derive(Copy, Clone, Debug)]
+pub enum AIOptions {
+    Negamax(usize),
+    MonteCarloTreeSearch(MCTSOptions),
+    Random,
+}
+
+pub trait AIPlayer {
+    fn find_best_move(&self, options: AIOptions) -> Turn;
+}
+
+impl AIPlayer for GameState {
+    fn find_best_move(&self, options: AIOptions) -> Turn {
+        match options {
+            AIOptions::Negamax(depth) => self.find_best_action_negamax(depth),
+            AIOptions::MonteCarloTreeSearch(opts) => self.find_best_action_mcts(opts),
+            AIOptions::Random => {
+                let mut rng = thread_rng();
+                *self.get_valid_moves().choose(&mut rng).unwrap()
+            },
+        }
+    }
+}
 
 impl NegamaxTree for GameState {
     type Action = Turn;

@@ -1,7 +1,8 @@
 use crate::game_state::{GameState, Player, GameType, GameStatus, Turn};
 use crate::piece::Piece;
 use crate::hex::ORIGIN;
-use crate::ai::mcts::MonteCarloSearchable;
+use crate::ai::{AIPlayer, AIOptions};
+use crate::ai::mcts::MCTSOptions;
 use crate::piece::Bug::*;
 use crate::game_state::Player::*;
 use crate::parser::*;
@@ -12,8 +13,26 @@ use std::fmt;
 
 pub type EngineResult<T> = Result<T, Error>;
 
+#[derive(Copy, Clone)]
+pub struct EngineOptions {
+    first_player: Player,
+    white_ai_options: AIOptions,
+    black_ai_options: AIOptions,
+}
+
+impl Default for EngineOptions {
+    fn default() -> Self {
+        EngineOptions {
+            first_player: Player::White, // default in Mzinga.Viewer
+            white_ai_options: AIOptions::MonteCarloTreeSearch(MCTSOptions::default()),
+            black_ai_options: AIOptions::MonteCarloTreeSearch(MCTSOptions::default()),
+        }
+    }
+}
+
 pub struct Engine {
     game: Option<GameState>,
+    options: EngineOptions,
 }
 
 #[derive(PartialEq, Debug)]
@@ -155,15 +174,20 @@ impl fmt::Display for GameStatus {
 }
 
 impl Engine {
-    pub fn new() -> Engine { Engine { game: None } }
+    pub fn new() -> Engine {
+        Engine {
+            game: None,
+            options: EngineOptions::default(),
+        }
+    }
 
     fn handle_newgame(&mut self, newgame: &str) -> EngineResult<String> {
         if newgame == "newgame" {
-            self.game = Some(GameState::new(White));
+            self.game = Some(GameState::new(self.options.first_player));
         } else {
             if let Some(arg) = newgame.strip_prefix("newgame ") {
                 if let Ok(game_type) = parse_game_type(arg) {
-                    self.game = Some(GameState::new_with_type(White, game_type));
+                    self.game = Some(GameState::new_with_type(self.options.first_player, game_type));
                 } else if let Ok(game) = parse_game_string(arg) {
                     self.game = Some(game);
                 }
@@ -185,7 +209,7 @@ impl Engine {
             "validmoves" => self.get_valid_moves().into(),
             "undo" => self.handle_undo("undo 1").into(),
             cmd if cmd.starts_with("undo ") => self.handle_undo(cmd).into(),
-            "options" => Output::empty(),
+            "options" => Output::empty(), // TODO
             "info" => self.get_info(),
             cmd if cmd.starts_with("bestmove") => self.get_best_move(cmd).into(),
             _ => format!("unrecognized command {}", input).into(),
@@ -194,7 +218,14 @@ impl Engine {
 
     fn get_best_move(&self, _input: &str) -> EngineResult<String> {
         match &self.game {
-            Some(game) => Ok(get_turn_string(&game.find_best_action_mcts(), game)),
+            Some(game) => {
+                let opts = match game.current_player {
+                    Player::Black => self.options.black_ai_options,
+                    Player::White => self.options.white_ai_options,
+                };
+                let best_move = game.find_best_move(opts);
+                Ok(get_turn_string(&best_move, game))
+            },
             _ => return Err(Error::EngineError("game not created yet".into())),
         }
     }
