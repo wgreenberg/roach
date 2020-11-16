@@ -7,11 +7,7 @@ use hive::ai::mcts::MCTSOptions;
 fn main() {
     let mut mcts_wins = 0;
     let mut random_wins = 0;
-    let mcts_options = AIOptions::MonteCarloTreeSearch(MCTSOptions {
-        max_depth: 170,
-        n_iterations: 100,
-        exploration_coefficient: 2.0,
-    });
+    let mcts_options = AIOptions::MonteCarloTreeSearch(MCTSOptions::default());
     let random_options = AIOptions::Random;
     for i in 0..10 {
         let mut game = GameState::new(Black);

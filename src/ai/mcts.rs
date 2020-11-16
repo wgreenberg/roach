@@ -14,7 +14,7 @@ impl Default for MCTSOptions {
         MCTSOptions {
             max_depth: 170, // mentioned in Konz (2012)
             exploration_coefficient: 2.0, // default for UCB1
-            n_iterations: 100,
+            n_iterations: 500,
         }
     }
 }
