@@ -117,25 +117,7 @@ fn score_turn(game: &GameState, turn: &Turn) -> f64 {
 
 impl MonteCarloSearchable for GameState {
     type Action = Turn;
-
-    fn simulate(&self, max_depth: usize) -> f64 {
-        let mut simulation = self.clone();
-        let mut n_turns = 0;
-        let result = loop {
-            if n_turns > max_depth {
-                break 0.0;
-            }
-            match simulation.get_terminal_value() {
-                Some(reward) => break reward,
-                _ => {},
-            }
-            let choices = simulation.get_valid_moves();
-            let turn = simulation.select_action(&choices);
-            simulation.submit_turn_unchecked(turn);
-            n_turns += 1;
-        };
-        result
-    }
+    type Player = Player;
 
     fn select_action(&self, actions: &Vec<Self::Action>) -> Self::Action {
         let (first, rest) = actions.split_first().unwrap();
@@ -160,11 +142,14 @@ impl MonteCarloSearchable for GameState {
         }
     }
 
-    fn get_terminal_value(&self) -> Option<f64> {
+    fn current_player(&self) -> Self::Player {
+        self.current_player
+    }
+
+    fn get_terminal_value(&self, player: Player) -> Option<bool> {
         match self.status {
-            GameStatus::Draw => Some(0.0),
-            GameStatus::Win(Player::Black) => Some(1.0),
-            GameStatus::Win(Player::White) => Some(-1.0),
+            GameStatus::Win(winner) => Some(winner == player),
+            GameStatus::Draw => Some(false),
             _ => None
         }
     }
@@ -177,10 +162,9 @@ impl MonteCarloSearchable for GameState {
         self.turns.last().cloned()
     }
 
-    fn apply_action(&self, action: Self::Action) -> Self {
-        let mut clone = self.clone();
-        clone.submit_turn(action).expect("failed to submit turn");
-        clone
+    // we assume all turns submitted by the AI are valid
+    fn apply_action(&mut self, action: Self::Action) {
+        self.submit_turn_unchecked(action);
     }
 }
 
