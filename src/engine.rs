@@ -94,7 +94,7 @@ impl fmt::Display for Piece {
     }
 }
 
-fn get_turn_string(turn: &Turn, game: &GameState) -> String {
+pub fn get_turn_string(turn: &Turn, game: &GameState) -> String {
     match turn {
         Turn::Move(target, hex) | Turn::Place(target, hex) => {
             if let Some(stacked_piece) = game.board.get(hex)  {

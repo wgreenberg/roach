@@ -55,14 +55,14 @@ impl<T> StatsNode<T> where T: MonteCarloSearchable + Debug {
 }
 
 #[derive(Debug)]
-struct MCSearchTree<T> where T: MonteCarloSearchable {
+pub struct MCSearchTree<T> where T: MonteCarloSearchable {
     arena: Vec<StatsNode<T>>,
     options: MCTSOptions,
     maxi_player: T::Player,
 }
 
 impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
-    fn new(game: T, maxi_player: T::Player, options: MCTSOptions) -> Self {
+    pub fn new(game: T, maxi_player: T::Player, options: MCTSOptions) -> Self {
         MCSearchTree {
             arena: vec![StatsNode::new(0, game, None)],
             options: options,
@@ -158,16 +158,20 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
         }
     }
 
-    fn write_tree(&self, path: &str) -> std::io::Result<()> {
+    pub fn write_tree(&self, path: &str) -> std::io::Result<()> {
         let file = File::create(path)?;
         let mut w = BufWriter::new(&file);
         write!(&mut w, "digraph MCTS {{")?;
         write!(&mut w, "node [shape=record]")?;
         for node in &self.arena {
             let score = (node.total_score as f64) / (node.n_visits as f64);
-            write!(&mut w, "{} [label=\"{:?} | score {} | visits {}", node.idx, node.game.get_last_action(), score, node.n_visits)?;
+            let node_str = match node.parent {
+                Some(parent) => self.arena[parent].game.describe_action(node.game.get_last_action().unwrap()),
+                None => "()".to_string(),
+            };
+            write!(&mut w, "{} [label=\"{} | score {:.2} | visits {}", node.idx, node_str, score, node.n_visits)?;
             match node.parent {
-                Some(parent) => write!(&mut w, " | ucb {}\"];", self.ucb1(parent, node.idx))?,
+                Some(parent) => write!(&mut w, " | ucb {:.2}\"];", self.ucb1(parent, node.idx))?,
                 None => write!(&mut w, "\"];")?,
             }
             for child in &node.children {
@@ -189,6 +193,7 @@ pub trait MonteCarloSearchable: Clone + Debug {
     fn apply_action(&mut self, action: Self::Action);
     fn select_action(&self, actions: &Vec<Self::Action>) -> Self::Action;
     fn current_player(&self) -> Self::Player;
+    fn describe_action(&self, action: Self::Action) -> String;
 
     // simulate a random walk from this state and return the score
     fn simulate(&self, max_depth: usize, maxi_player: Self::Player) -> Option<bool> {
@@ -252,6 +257,9 @@ mod tests {
         }
         fn current_player(&self) -> Self::Player {
             true
+        }
+        fn describe_action(&self, action: Self::Action) -> String {
+            action.to_string()
         }
     }
 

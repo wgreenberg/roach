@@ -166,6 +166,10 @@ impl MonteCarloSearchable for GameState {
     fn apply_action(&mut self, action: Self::Action) {
         self.submit_turn_unchecked(action);
     }
+
+    fn describe_action(&self, action: Self::Action) -> String {
+        crate::engine::get_turn_string(&action, self)
+    }
 }
 
 #[cfg(test)]
