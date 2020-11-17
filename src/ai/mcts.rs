@@ -265,7 +265,7 @@ mod tests {
 
     // example tree from
     // https://www.geeksforgeeks.org/minimax-algorithm-in-game-theory-set-1-introduction/
-    fn get_connect_2_tree() -> GameTree {
+    fn get_3_move_connect_2_tree() -> GameTree {
         GameTree {
             moves: "123".to_string(),
             child_nodes: HashMap::from_iter(vec![
@@ -280,9 +280,42 @@ mod tests {
         }
     }
 
+    fn get_4_move_connect_2_tree() -> GameTree {
+        GameTree {
+            moves: "1234".to_string(),
+            child_nodes: HashMap::from_iter(vec![
+                ("1234".into(), false),
+                ("1243".into(), false),
+                ("1324".into(), true),
+                ("1342".into(), false),
+                ("1423".into(), true),
+                ("1432".into(), false),
+                ("2134".into(), true),
+                ("2143".into(), false),
+                ("2314".into(), true),
+                ("2341".into(), false),
+                ("2413".into(), true),
+                ("2431".into(), true),
+                ("3124".into(), true),
+                ("3142".into(), true),
+                ("3214".into(), false),
+                ("3241".into(), true),
+                ("3412".into(), false),
+                ("3421".into(), true),
+                ("4123".into(), false),
+                ("4132".into(), true),
+                ("4213".into(), false),
+                ("4231".into(), true),
+                ("4312".into(), false),
+                ("4321".into(), false),
+            ]),
+            path_so_far: String::new(),
+        }
+    }
+
     #[test]
     fn test_exploration() {
-        let game_tree = get_connect_2_tree();
+        let game_tree = get_3_move_connect_2_tree();
         let mut search_tree = MCSearchTree::new(game_tree, true, MCTSOptions::default());
         let v = search_tree.select(0);
         assert!(!&search_tree.arena[v].is_expanded());
@@ -298,8 +331,16 @@ mod tests {
 
     #[test]
     fn test_chooses_right_answer() {
-        let game_tree = get_connect_2_tree();
+        let game_tree = get_3_move_connect_2_tree();
         let mut search_tree = MCSearchTree::new(game_tree, true, MCTSOptions::default());
         assert_eq!(search_tree.find_best_action(), '2');
+    }
+
+    #[test]
+    fn write_connect_2_tree() {
+        let game_tree = get_4_move_connect_2_tree();
+        let mut search_tree = MCSearchTree::new(game_tree, true, MCTSOptions::default());
+        dbg!(search_tree.find_best_action());
+        search_tree.write_tree("foo.dot").expect("foo");
     }
 }
