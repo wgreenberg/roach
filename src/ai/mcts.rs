@@ -22,7 +22,7 @@ impl Default for MCTSOptions {
 #[derive(Debug)]
 struct StatsNode<T> where T: MonteCarloSearchable {
     n_visits: usize,
-    total_score: u64,
+    total_wins: u64,
     game: T,
     unexplored_actions: Vec<T::Action>,
 
@@ -35,7 +35,7 @@ impl<T> StatsNode<T> where T: MonteCarloSearchable + Debug {
     fn new(idx: usize, game: T, parent: Option<usize>) -> Self {
         StatsNode {
             n_visits: 0,
-            total_score: 0,
+            total_wins: 0,
             unexplored_actions: game.get_possible_actions(),
             game,
             idx,
@@ -44,9 +44,9 @@ impl<T> StatsNode<T> where T: MonteCarloSearchable + Debug {
         }
     }
 
-    fn update(&mut self, score: u64) {
+    fn update(&mut self, n_wins: u64) {
         self.n_visits += 1;
-        self.total_score += score;
+        self.total_wins += n_wins;
     }
 
     fn is_expanded(&self) -> bool {
@@ -89,21 +89,21 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
         best_action.unwrap()
     }
 
-    fn best_child(&self, node: usize) -> usize {
-        let v = &self.arena[node];
-        let (first, rest) = v.children.split_first().unwrap();
-        let mut best_ucb = self.ucb1(node, *first);
+    fn best_child(&self, parent_i: usize) -> usize {
+        let parent = &self.arena[parent_i];
+        let (first, rest) = parent.children.split_first().unwrap();
+        let mut best_ucb = self.ucb1(parent_i, *first);
         let mut best_child = *first;
-        for &v_i in rest {
-            let ucb = self.ucb1(node, v_i);
-            let is_better = if v.game.current_player() == self.maxi_player {
+        for &child_i in rest {
+            let ucb = self.ucb1(parent_i, child_i);
+            let is_better = if self.is_maxi_move(parent_i) {
                 ucb > best_ucb
             } else {
                 ucb < best_ucb
             };
             if is_better {
                 best_ucb = ucb;
-                best_child = v_i;
+                best_child = child_i;
             }
         }
         best_child
@@ -112,9 +112,9 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
     fn ucb1(&self, parent_i: usize, child_i: usize) -> f64 {
         let parent = &self.arena[parent_i];
         let child = &self.arena[child_i];
-        let exploitation = (child.total_score as f64) / (child.n_visits as f64);
+        let exploitation = (child.total_wins as f64) / (child.n_visits as f64);
         let exploration = ((parent.n_visits as f64).ln() / (child.n_visits + 1) as f64).sqrt();
-        if parent.game.current_player() == self.maxi_player {
+        if self.is_maxi_move(parent_i) {
             exploitation + self.options.exploration_coefficient * exploration
         } else {
             exploitation - self.options.exploration_coefficient * exploration
@@ -133,7 +133,11 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
         v
     }
 
-    fn expand(&mut self, node: usize) -> usize{
+    fn is_maxi_move(&self, node: usize) -> bool {
+        self.arena[node].game.current_player() == self.maxi_player
+    }
+
+    fn expand(&mut self, node: usize) -> usize {
         let new_idx = self.arena.len();
         let v = &mut self.arena[node];
         let chosen_action = v.game.select_action(&v.unexplored_actions);
@@ -150,10 +154,10 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
         self.arena[node].game.simulate(self.options.max_depth, self.maxi_player)
     }
 
-    fn backup(&mut self, node: usize, score: u64) {
+    fn backup(&mut self, node: usize, n_wins: u64) {
         let mut v = Some(node);
         while let Some(v_i) = v {
-            self.arena[v_i].update(score);
+            self.arena[v_i].update(n_wins);
             v = self.arena[v_i].parent;
         }
     }
@@ -164,12 +168,13 @@ impl<T> MCSearchTree<T> where T: MonteCarloSearchable + Debug {
         write!(&mut w, "digraph MCTS {{")?;
         write!(&mut w, "node [shape=record]")?;
         for node in &self.arena {
-            let score = (node.total_score as f64) / (node.n_visits as f64);
+            let score = (node.total_wins as f64) / (node.n_visits as f64);
             let node_str = match node.parent {
                 Some(parent) => self.arena[parent].game.describe_action(node.game.get_last_action().unwrap()),
                 None => "()".to_string(),
             };
-            write!(&mut w, "{} [label=\"{} | score {:.2} | visits {}", node.idx, node_str, score, node.n_visits)?;
+            let color = if self.is_maxi_move(node.idx) { "black" } else { "yellow" };
+            write!(&mut w, "{} [color = {} label=\"{} | score {:.2} | visits {}", node.idx, color, node_str, score, node.n_visits)?;
             match node.parent {
                 Some(parent) => write!(&mut w, " | ucb {:.2}\"];", self.ucb1(parent, node.idx))?,
                 None => write!(&mut w, "\"];")?,
@@ -187,6 +192,7 @@ pub trait MonteCarloSearchable: Clone + Debug {
     type Action: Debug + PartialEq;
     type Player: Copy + Clone + Debug + PartialEq;
 
+    // return whether the specified player won
     fn get_terminal_value(&self, player: Self::Player) -> Option<bool>;
     fn get_possible_actions(&self) -> Vec<Self::Action>;
     fn get_last_action(&self) -> Option<Self::Action>;
@@ -195,7 +201,7 @@ pub trait MonteCarloSearchable: Clone + Debug {
     fn current_player(&self) -> Self::Player;
     fn describe_action(&self, action: Self::Action) -> String;
 
-    // simulate a random walk from this state and return the score
+    // simulate a random walk from this state and return whether the specified player won
     fn simulate(&self, max_depth: usize, maxi_player: Self::Player) -> Option<bool> {
         let mut simulation = self.clone();
         let mut n_turns = 0;
@@ -256,7 +262,7 @@ mod tests {
             *actions.choose(&mut rng).unwrap()
         }
         fn current_player(&self) -> Self::Player {
-            true
+            self.path_so_far.len() % 2 == 0
         }
         fn describe_action(&self, action: Self::Action) -> String {
             action.to_string()
