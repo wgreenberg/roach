@@ -347,6 +347,6 @@ mod tests {
         let game_tree = get_4_move_connect_2_tree();
         let mut search_tree = MCSearchTree::new(game_tree, true, MCTSOptions::default());
         dbg!(search_tree.find_best_action());
-        search_tree.write_tree("foo.dot").expect("foo");
+        //search_tree.write_tree("foo.dot").expect("foo");
     }
 }
