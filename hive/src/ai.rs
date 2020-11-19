@@ -1,10 +1,7 @@
-pub mod negamax;
-pub mod mcts;
-
 use rand::thread_rng;
 use rand::seq::SliceRandom;
-use crate::ai::negamax::{NegamaxTree, Evaluation};
-use crate::ai::mcts::{MonteCarloSearchable, MCTSOptions};
+use ai::negamax::{NegamaxTree, Evaluation};
+use ai::mcts::{MonteCarloSearchable, MCTSOptions};
 use crate::game_state::{GameState, Turn, GameStatus, Player};
 use crate::hex::Hex;
 use crate::piece::{Bug, Piece};

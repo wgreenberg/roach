@@ -2,7 +2,7 @@ use hive::game_state::GameStatus::*;
 use hive::game_state::Player::*;
 use hive::game_state::GameState;
 use hive::ai::{AIOptions, AIPlayer};
-use hive::ai::mcts::MCTSOptions;
+use ai::mcts::MCTSOptions;
 
 fn main() {
     let mut mcts_wins = 0;

@@ -2,7 +2,7 @@ use crate::game_state::{GameState, Player, GameType, GameStatus, Turn};
 use crate::piece::Piece;
 use crate::hex::ORIGIN;
 use crate::ai::{AIPlayer, AIOptions};
-use crate::ai::mcts::MCTSOptions;
+use ai::mcts::MCTSOptions;
 use crate::piece::Bug::*;
 use crate::game_state::Player::*;
 use crate::parser::*;

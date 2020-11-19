@@ -1,0 +1,27 @@
+[package]
+name = "hive"
+version = "0.1.0"
+authors = ["Will"]
+edition = "2018"
+
+[dependencies]
+rand = "0.7.3"
+"ai" = { path = "../ai" }
+
+[dev-dependencies]
+"criterion" = "*"
+
+[[bin]]
+name = "ai-tournament"
+
+[[bench]]
+name = "sgf_benchmark"
+harness = false
+
+[[bench]]
+name = "hex_benchmark"
+harness = false
+
+[[bench]]
+name = "game_state_benchmark"
+harness = false

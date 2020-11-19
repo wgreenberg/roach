@@ -1,0 +1,5 @@
+[package]
+name = "ai"
+version = "0.1.0"
+authors = ["Will"]
+edition = "2018"

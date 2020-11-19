@@ -1,0 +1,31 @@
+[package]
+name = "hive"
+version = "0.1.0"
+authors = ["Will"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "ai-tournament"
+
+[dependencies]
+rand = "0.7.3"
+
+[dev-dependencies]
+"criterion" = "*"
+
+[[bench]]
+name = "sgf_benchmark"
+harness = false
+
+[[bench]]
+name = "hex_benchmark"
+harness = false
+
+[[bench]]
+name = "game_state_benchmark"
+harness = false
+
+[profile.release]
+debug = true
