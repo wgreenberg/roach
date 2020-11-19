@@ -14,6 +14,9 @@ rand = "0.7.3"
 [[bin]]
 name = "ai-tournament"
 
+[[bin]]
+name = "cli-engine"
+
 [[bench]]
 name = "sgf_benchmark"
 harness = false
