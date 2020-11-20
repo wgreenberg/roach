@@ -22,7 +22,13 @@ Some baseline rules:
 * Tournament rules (no Queens on turn 1)
 * Only base Hive and PLM are valid
 * If a player disconnects or times out, it counts as a forfeit
-* `undo` commands are ignored
 * Games will use time control to prevent neverending games
 * If there's a major rules bug in the server engine, all ELO scores can/will be
   invalidated
+
+Multiplayer model:
+* All players must implement the UHP Engine interface to play. roach will
+  provide a thin adapter layer to ease the burden of writing this for each AI
+* The adapter will only require that an AI provide a stdin/stdout interface
+  that, given a UHP GameString (and possibly the remaining time), provides the
+  AI's next move
