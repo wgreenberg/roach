@@ -36,10 +36,10 @@ ok
 Here, white played their first Ant, and then awaited black's response. Black
 then played their beetle next to white's ant, and play returned to white.
 
-## New command: `play forfeit`
+## New command: `play forfeit [reason]`
 
 This will immediately end the game for the current player and result in a win
-for the other player.
+for the other player. An optional `reason` string can be provided for context
 
 # Using UHP 1.0
 
@@ -73,6 +73,7 @@ example of the first few moves
 
 V->E: newgame
 E->P1,P2: newgame s1
+P1,P2->E: s1
 E->V: s1
 V->E: bestmove
 E->P1: bestmove

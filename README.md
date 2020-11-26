@@ -32,3 +32,18 @@ Multiplayer model:
 * The adapter will only require that an AI provide a stdin/stdout interface
   that, given a UHP GameString (and possibly the remaining time), provides the
   AI's next move
+
+API:
+* POST /matchmaking (auth) - join matchmaking. returns a URL to poll for matchmaking
+  status
+* GET /matchmaking/:id (auth) - poll status of a matchmaking ticket; when ready, will
+  provide the URL for a websockets connection
+* GET /play/:player_id/:game_id (auth) - player's websocket endpoint for a game
+* GET /games - list of all completed games
+* GET /games/active - list of all active games
+* GET /game/:id - info for a game, including metadata and UHP session
+* GET /players - list of all players
+* GET /player/:id - info for a player
+* POST /player (auth) - create a new player for the current user
+* POST /player/:id (auth) - update info/regenerate API token for player
+* GET /user/:id - info for a user
