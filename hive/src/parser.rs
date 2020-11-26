@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::game_state::{Turn, GameState, GameType, GameStatus};
+use crate::game_state::{Turn, GameState, GameType, GameStatus, Color};
 use crate::game_state::Color::*;
 use crate::hex::{Hex, ORIGIN};
 use crate::piece::Piece;
@@ -46,15 +46,12 @@ pub fn parse_game_string(input: &str) -> ParserResult<GameState> {
     let mut tokens = input.split(";");
     let game_type = parse_game_type(tokens.next().ok_or("empty GameType")?)?;
     let game_status = parse_game_status(tokens.next().ok_or("empty GameState")?)?;
-    let turn_no = parse_game_turn(tokens.next().ok_or("empty TurnString")?)?;
-    let mut game = GameState::new_with_type(White, game_type);
+    let first_player = parse_first_player(tokens.next().ok_or("empty TurnString")?, tokens.clone().count())?;
+    let mut game = GameState::new_with_type(first_player, game_type);
     for token in tokens {
         if let Err(err) = game.submit_turn(parse_move_string(token, &game.board, &game.stacks)?) {
             return Err(format!("invalid turn {}: {:?}", token, err).into());
         }
-    }
-    if game.turn_no() != turn_no {
-        return Err(format!("turn incorrect (actually {})", game.turn_no()).into());
     }
     if game.status != game_status {
         return Err(format!("game status {:?} incorrect (actually {:?})", game_status, game.status).into());
@@ -62,15 +59,17 @@ pub fn parse_game_string(input: &str) -> ParserResult<GameState> {
     Ok(game)
 }
 
-pub fn parse_game_turn(input: &str) -> ParserResult<usize> {
+pub fn parse_first_player(input: &str, n_turns: usize) -> ParserResult<Color> {
     let mut tokens = input.split(|c| c == '[' || c == ']');
-    let player = tokens.next().ok_or("expected White or Black")?;
-    let num = tokens.next().ok_or("expected White or Black")?.to_string()
-        .parse::<usize>().or(Err("failed to parse turn number"))?;
-    match (player, num) {
-        ("White", n) => Ok(n*2 - 1),
-        ("Black", n) => Ok(n*2),
-        (c, _) => Err(format!("unexpected player string {}", c).into()),
+    let current_player = match tokens.next().ok_or("expected White or Black")? {
+        "White" => White,
+        "Black" => Black,
+        c => return Err(format!("unexpected player string {}", c).into()),
+    };
+    if n_turns % 2 == 0 {
+        Ok(current_player)
+    } else {
+        Ok(current_player.other())
     }
 }
 
@@ -234,5 +233,13 @@ mod tests {
     fn test_parse_game_type() {
         assert_eq!(parse_game_type("Base"), Ok(GameType::Base));
         assert_eq!(parse_game_type("Base+MP"), Ok(GameType::PLM(true, false, true)));
+    }
+
+    #[test]
+    fn test_parse_first_player() {
+        assert_eq!(parse_first_player("Black[1]", 0), Ok(Black));
+        assert_eq!(parse_first_player("White[1]", 0), Ok(White));
+        assert_eq!(parse_first_player("Black[1]", 1), Ok(White));
+        assert_eq!(parse_first_player("White[1]", 1), Ok(Black));
     }
 }
