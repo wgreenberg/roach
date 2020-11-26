@@ -6,7 +6,7 @@ mod arena;
 mod hive_match;
 mod matchmaker;
 mod player;
-mod ws;
+mod client;
 
 #[tokio::main]
 async fn main() {

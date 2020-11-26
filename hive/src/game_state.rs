@@ -4,7 +4,7 @@ use crate::hex::{Hex, ORIGIN};
 use self::Color::*;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GameState {
     pub unplayed_pieces: Vec<Piece>,
     pub board: HashMap<Hex, Piece>,
