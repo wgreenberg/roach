@@ -2,7 +2,7 @@ use std::fs::File;
 use std::collections::HashMap;
 use std::io::{BufReader, BufRead};
 use std::path::Path;
-use crate::game_state::{Turn, GameState, Player, GameType};
+use crate::game_state::{Turn, GameState, Color, GameType};
 use crate::hex::Hex;
 use crate::piece::Piece;
 use crate::parser::parse_piece_string;
@@ -17,7 +17,7 @@ pub fn read_sgf_file<P: AsRef<Path>>(path: P) -> Option<GameState> {
     let game_type_line = headers.iter().find(|line| line.starts_with("SU[")).unwrap();
     let game_type = parse_game_type(&game_type_line).unwrap();
     // seems like all the test games start w/ white
-    let mut game = GameState::new_with_type(Player::White, game_type);
+    let mut game = GameState::new_with_type(Color::White, game_type);
     for line in actions {
         if line.starts_with("; ") {
             if line.contains("move") || line.contains("dropb") || line.contains("pass") {

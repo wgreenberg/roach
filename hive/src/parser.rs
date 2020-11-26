@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::game_state::{Turn, GameState, GameType, GameStatus};
-use crate::game_state::Player::*;
+use crate::game_state::Color::*;
 use crate::hex::{Hex, ORIGIN};
 use crate::piece::Piece;
 use crate::piece::Bug::*;

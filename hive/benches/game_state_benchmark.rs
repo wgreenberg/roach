@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use hive::game_state::{GameState, GameType, Player};
+use hive::game_state::{GameState, GameType, Color};
 use hive::test_utils::play_and_verify;
 
 pub fn play_long_game_benchmark(c: &mut Criterion) {
     c.bench_function("play_long_game", |b| b.iter(|| {
-            let mut game = GameState::new_with_type(Player::White, GameType::PLM(true, true, true));
+            let mut game = GameState::new_with_type(Color::White, GameType::PLM(true, true, true));
             play_and_verify(&mut game, vec![
                 "wL",
                 "bL \\wL",

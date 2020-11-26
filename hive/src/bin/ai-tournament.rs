@@ -1,5 +1,5 @@
 use hive::game_state::GameStatus::*;
-use hive::game_state::Player::*;
+use hive::game_state::Color::*;
 use hive::game_state::GameState;
 use hive::ai::{AIOptions, AIPlayer};
 use ai::mcts::MCTSOptions;
@@ -10,8 +10,8 @@ fn main() {
     let mcts_options = AIOptions::MonteCarloTreeSearch(MCTSOptions::default());
     let random_options = AIOptions::Random;
     for i in 0..10 {
-        let mut game = GameState::new(Black);
-        while game.status == NotStarted || game.status == InProgress {
+       let mut game = GameState::new(Black);
+        while !game.is_over() {
             let opts = match game.current_player {
                 Black => mcts_options,
                 White => random_options,

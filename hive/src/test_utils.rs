@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::fmt::Debug;
 use crate::game_state::{Turn, GameState};
-use crate::game_state::Player::*;
+use crate::game_state::Color::*;
 use crate::hex::{Hex, ORIGIN};
 use crate::piece::Piece;
 use crate::piece::Bug::*;

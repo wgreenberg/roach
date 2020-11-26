@@ -1,7 +1,7 @@
 use crate::piece::{Piece, Bug};
 use crate::piece::Bug::*;
 use crate::hex::{Hex, ORIGIN};
-use self::Player::*;
+use self::Color::*;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -10,7 +10,7 @@ pub struct GameState {
     pub board: HashMap<Hex, Piece>,
     pub stacks: HashMap<Hex, Vec<Piece>>,
     pub turns: Vec<Turn>,
-    pub current_player: Player,
+    pub current_player: Color,
     pub status: GameStatus,
     pub game_type: GameType,
 }
@@ -23,13 +23,13 @@ pub enum GameType {
 
 #[derive(PartialEq, Debug)]
 pub enum TurnError {
-    WrongPlayer,
+    WrongColor,
     InvalidMove,
     GameOver,
 }
 
 impl GameState {
-    pub fn new_with_type(first_player: Player, game_type: GameType) -> GameState {
+    pub fn new_with_type(first_player: Color, game_type: GameType) -> GameState {
         GameState {
             unplayed_pieces: get_initial_pieces(game_type),
             board: HashMap::new(),
@@ -40,7 +40,7 @@ impl GameState {
             game_type,
         }
     }
-    pub fn new(first_player: Player) -> GameState {
+    pub fn new(first_player: Color) -> GameState {
         GameState::new_with_type(first_player, GameType::Base)
     }
 
@@ -130,8 +130,6 @@ impl GameState {
         if !on_hive && !self.check_one_hive_rule(&pieces_after_pickup, start) {
             // but if this is a pillbug (or a mosquito imitating a pillbug), just return the pieces
             // it can toss
-            // TODO this doesn't cover e.g. Black tosses their Queen and White tries to toss the
-            // same Queen
             match piece.bug {
                 Pillbug => return self.get_pillbug_tosses(start),
                 Mosquito => return start.neighbors().iter()
@@ -201,12 +199,13 @@ impl GameState {
                         .flat_map(|neighbor| self.board.get(neighbor))
                         .filter(|neighbor_piece| neighbor_piece.bug != Mosquito)
                         .flat_map(|&neighbor_piece| {
-                            // if we're imitating a pillbug, we unfortunately have to manually calculate
-                            // the moves here since it's impossible to distinguish moves (which we want
-                            // to overwrite the piece value of) from tosses (which we don't) from the
-                            // results of self.get_piece_moves(...)
+                            // if we're imitating a pillbug, we unfortunately have to manually
+                            // calculate the moves here since it's impossible to distinguish moves
+                            // (which we want to overwrite the piece value of) from tosses (which
+                            // we don't) from the results of self.get_piece_moves(...)
                             if neighbor_piece.bug == Pillbug {
-                                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1)).iter()
+                                start.pathfind(&spaces_after_pickup, &pieces_after_pickup, Some(1))
+                                    .iter()
                                     .map(|end| Turn::Move(*piece, *end))
                                     .chain(self.get_pillbug_tosses(start))
                                     .collect()
@@ -332,11 +331,17 @@ impl GameState {
         }
     }
 
-    pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
+    pub fn is_over(&self) -> bool {
         match self.status {
-            GameStatus::Win(_) | GameStatus::Draw => return Err(TurnError::GameOver),
-            _ => {},
-        };
+            GameStatus::Win(_) | GameStatus::Draw => true,
+            _ => false,
+        }
+    }
+
+    pub fn submit_turn(&mut self, turn: Turn) -> Result<(), TurnError> {
+        if self.is_over() {
+            return Err(TurnError::GameOver);
+        }
 
         if turn != Turn::Pass && !self.get_valid_moves().contains(&turn) {
             return Err(TurnError::InvalidMove)
@@ -365,13 +370,13 @@ fn get_initial_pieces(game_type: GameType) -> Vec<Piece> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Player {
+pub enum Color {
     White,
     Black,
 }
 
-impl Player {
-    pub fn other(&self) -> Player {
+impl Color {
+    pub fn other(&self) -> Color {
         match self {
             White => Black,
             Black => White,
@@ -384,7 +389,7 @@ pub enum GameStatus {
     NotStarted,
     InProgress,
     Draw,
-    Win(Player),
+    Win(Color),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -709,7 +714,7 @@ mod test {
                    Some(TurnError::GameOver));
     }
 
-    fn count_pieces(game: &GameState, player: Player) -> Vec<(Bug, usize)> {
+    fn count_pieces(game: &GameState, player: Color) -> Vec<(Bug, usize)> {
         let mut counts = HashMap::new();
         game.unplayed_pieces.iter()
             .for_each(|piece| { if piece.owner == player { *counts.entry(piece.bug).or_insert(0) += 1 }});
@@ -787,6 +792,21 @@ mod test {
             "bP1 wB1\\",
             "bP1 bB1-",
         ]);
+
+        game = GameState::new_with_type(Black, GameType::PLM(true, false, false));
+        play_and_verify(&mut game, vec![
+            "bP1",
+            "wP1 -bP1",
+            "bQ bP1-",
+            "wQ -wP1",
+            "bQ1 \\bP1",
+        ]);
+        // white pillbug *cannot* toss black queen since it was just moved
+        for m in game.get_valid_moves() {
+            if let Turn::Move(piece, _dest) = m {
+                assert!(piece != Piece::new(Queen, Black));
+            }
+        }
     }
 
     #[test]

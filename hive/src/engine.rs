@@ -1,10 +1,10 @@
-use crate::game_state::{GameState, Player, GameType, GameStatus, Turn};
+use crate::game_state::{GameState, Color, GameType, GameStatus, Turn};
 use crate::piece::Piece;
 use crate::hex::ORIGIN;
 use crate::ai::{AIPlayer, AIOptions};
 use ai::mcts::MCTSOptions;
 use crate::piece::Bug::*;
-use crate::game_state::Player::*;
+use crate::game_state::Color::*;
 use crate::parser::*;
 use crate::error::Error;
 use std::convert::From;
@@ -15,7 +15,7 @@ pub type EngineResult<T> = Result<T, Error>;
 
 #[derive(Copy, Clone)]
 pub struct EngineOptions {
-    first_player: Player,
+    first_player: Color,
     white_ai_options: AIOptions,
     black_ai_options: AIOptions,
 }
@@ -23,7 +23,7 @@ pub struct EngineOptions {
 impl Default for EngineOptions {
     fn default() -> Self {
         EngineOptions {
-            first_player: Player::White, // default in Mzinga.Viewer
+            first_player: Color::White, // default in Mzinga.Viewer
             white_ai_options: AIOptions::MonteCarloTreeSearch(MCTSOptions::default()),
             black_ai_options: AIOptions::MonteCarloTreeSearch(MCTSOptions::default()),
         }
@@ -31,7 +31,7 @@ impl Default for EngineOptions {
 }
 
 pub struct Engine {
-    game: Option<GameState>,
+    pub game: Option<GameState>,
     options: EngineOptions,
 }
 
@@ -139,7 +139,7 @@ impl fmt::Display for GameState {
     }
 }
 
-impl fmt::Display for Player {
+impl fmt::Display for Color {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             White => write!(f, "White"),
@@ -220,8 +220,8 @@ impl Engine {
         match &self.game {
             Some(game) => {
                 let opts = match game.current_player {
-                    Player::Black => self.options.black_ai_options,
-                    Player::White => self.options.white_ai_options,
+                    Color::Black => self.options.black_ai_options,
+                    Color::White => self.options.white_ai_options,
                 };
                 let best_move = game.find_best_move(opts);
                 Ok(get_turn_string(&best_move, game))
