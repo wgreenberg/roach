@@ -1,5 +1,5 @@
 use crate::player::Player;
-use crate::client::{Client, ClientError, ClientResult};
+use crate::client::{Client, ClientError};
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;

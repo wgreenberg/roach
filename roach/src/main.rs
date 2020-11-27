@@ -2,7 +2,6 @@
 use tokio;
 use warp::{http::StatusCode, Filter};
 
-mod arena;
 mod hive_match;
 mod matchmaker;
 mod player;
