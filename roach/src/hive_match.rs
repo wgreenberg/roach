@@ -124,6 +124,7 @@ impl<T> HiveSession<T> where T: Client {
 mod tests {
     use super::*;
     use async_trait::async_trait;
+    use crate::client::ClientResult;
 
     struct MockClient {
         requests: Vec<String>,
@@ -199,7 +200,7 @@ mod tests {
             game: GameState::new(Color::Black),
         };
         assert_eq!(session.play_turn().await.is_err(), true);
-        assert_eq!(session.b_client.requests, vec!["bestmove", "play bS1"]);
+        assert_eq!(session.b_client.requests, vec!["bestmove"]);
         assert_eq!(session.w_client.requests, vec!["play bS1"]);
     }
 }
