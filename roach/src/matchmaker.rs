@@ -2,31 +2,31 @@ use crate::player::Player;
 use crate::hive_match::HiveMatch;
 use hive::game_state::GameType;
 
-struct Matchmaker<'a> {
+pub struct Matchmaker<'a> {
     pool: Vec<&'a Player>,
     game_type: GameType,
 }
 
 impl<'a> Matchmaker<'a> {
-    fn new(game_type: GameType) -> Matchmaker<'a> {
+    pub fn new(game_type: GameType) -> Matchmaker<'a> {
         Matchmaker {
             pool: Vec::new(),
             game_type,
         }
     }
 
-    fn add_to_pool(&mut self, player: &'a Player) {
+    pub fn add_to_pool(&mut self, player: &'a Player) {
         self.pool.push(player);
     }
 
-    fn find_potential_matches(&self) -> Vec<HiveMatch<'a>> {
+    pub fn find_potential_matches(&self) -> Vec<HiveMatch<'a>> {
         // TODO base this on ELO
         self.pool.chunks_exact(2)
             .map(|chunk| HiveMatch::new(chunk[0], chunk[1], self.game_type))
             .collect()
     }
 
-    fn confirm_match(&mut self, hive_match: &HiveMatch<'a>) {
+    pub fn confirm_match(&mut self, hive_match: &HiveMatch<'a>) {
         self.pool.retain(|&player| player != hive_match.white && player != hive_match.black);
     }
 }
