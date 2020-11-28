@@ -1,5 +1,5 @@
 use warp::{http::StatusCode, reply::json, Reply, Rejection};
-use crate::db::{PlayerDB, DB, Range};
+use crate::db::DBPool;
 use crate::player::Player;
 use serde::Deserialize;
 
@@ -8,16 +8,18 @@ pub struct PlayerRequest {
     name: String,
 }
 
-pub async fn list_players(db: PlayerDB) -> Result<impl Reply, Rejection> {
-    Ok(json(&db.read().await.get(Range::All).await))
+pub async fn list_players(db: DBPool) -> Result<impl Reply, Rejection> {
+    Ok(StatusCode::OK)
 }
 
-pub async fn get_player(db: PlayerDB, id: String) -> Result<impl Reply, Rejection> {
-    Ok(json(&db.read().await.get(Range::All).await))
+pub async fn get_player(db: DBPool, id: i64) -> Result<impl Reply, Rejection> {
+    Ok(StatusCode::OK)
 }
 
-pub async fn create_player(db: PlayerDB, body: PlayerRequest) -> Result<impl Reply, Rejection> {
-    let new_player = Player::new(body.name);
-    dbg!(&new_player);
-    Ok(json(&db.write().await.create(new_player).await))
+pub async fn create_player(db: DBPool, body: PlayerRequest) -> Result<impl Reply, Rejection> {
+    Ok(StatusCode::OK)
+}
+
+pub async fn delete_player(db: DBPool, id: i64) -> Result<impl Reply, Rejection> {
+    Ok(StatusCode::OK)
 }

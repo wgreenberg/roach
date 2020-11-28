@@ -34,9 +34,8 @@ Multiplayer model:
   AI's next move
 
 API:
-* POST /matchmaking (auth) - join matchmaking. returns a URL to poll for matchmaking
-  status
-* GET /matchmaking/:id (auth) - poll status of a matchmaking ticket; when ready, will
+* POST /matchmaking (auth) - join matchmaking
+* GET /matchmaking (auth) - poll status of a matchmaking ticket; when ready, will
   provide the URL for a websockets connection
 * GET /play/:player_id/:game_id (auth) - player's websocket endpoint for a game
 * GET /games - list of all completed games
