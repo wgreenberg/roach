@@ -33,36 +33,36 @@ async fn main() {
         .map(|| StatusCode::OK);
 
     let players_route = warp::path("players")
-        .and(filters::with_db(db_pool.clone()))
+        .and(filters::with(db_pool.clone()))
         .and_then(handlers::list_players);
 
     let player = warp::path("player");
     let player_route = player
         .and(warp::get())
-        .and(filters::with_db(db_pool.clone()))
+        .and(filters::with(db_pool.clone()))
         .and(warp::path::param())
         .and_then(handlers::get_player)
         .or(player
             .and(warp::post())
-            .and(filters::with_db(db_pool.clone()))
+            .and(filters::with(db_pool.clone()))
             .and(warp::body::json())
             .and_then(handlers::create_player))
         .or(player
             .and(warp::delete())
-            .and(filters::with_db(db_pool.clone()))
+            .and(filters::with(db_pool.clone()))
             .and(warp::path::param())
             .and_then(handlers::delete_player));
 
     let matchmaking = warp::path("matchmaking");
     let matchmaking_route = matchmaking
         .and(warp::post())
-        .and(filters::with_db(db_pool.clone()))
+        .and(filters::with(db_pool.clone()))
         .and(warp::filters::header::header("x-player-auth"))
         .and(filters::with(matchmaker.clone()))
         .and_then(handlers::enter_matchmaking)
         .or(matchmaking
             .and(warp::get())
-            .and(filters::with_db(db_pool.clone()))
+            .and(filters::with(db_pool.clone()))
             .and(warp::filters::header::header("x-player-auth"))
             .and(filters::with(matchmaker.clone()))
             .and(filters::with(active_matches_rw.clone()))
