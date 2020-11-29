@@ -37,8 +37,8 @@ mod tests {
 
     #[test]
     fn test_basic_matchmaking() {
-        let p1 = Player::new("foo".into());
-        let p2 = Player::new("bar".into());
+        let (p1, _) = Player::new("foo".into());
+        let (p2, _) = Player::new("bar".into());
         let mut mm = Matchmaker::new(GameType::Base);
         mm.add_to_pool(&p1);
         assert_eq!(mm.find_potential_matches().len(), 0);

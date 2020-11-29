@@ -7,8 +7,7 @@ use std::sync::{Arc};
 use crate::matchmaker::Matchmaker;
 use crate::db::{DBPool};
 use crate::player::Player;
-use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
+#[macro_use] extern crate diesel;
 use dotenv::dotenv;
 use std::env;
 
@@ -19,6 +18,7 @@ mod client;
 mod db;
 mod filters;
 mod handlers;
+mod schema;
 
 #[tokio::main]
 async fn main() {
@@ -38,7 +38,7 @@ async fn main() {
     let player_route = player
         .and(warp::get())
         .and(filters::with_db(db_pool.clone()))
-        .and(warp::query())
+        .and(warp::path::param())
         .and_then(handlers::get_player)
         .or(player
             .and(warp::post())
@@ -48,13 +48,8 @@ async fn main() {
         .or(player
             .and(warp::delete())
             .and(filters::with_db(db_pool.clone()))
-            .and(warp::body::json())
-            .and_then(handlers::delete_player))
-        .or(player
-            .and(warp::put())
-            .and(filters::with_db(db_pool.clone()))
-            .and(warp::body::json())
-            .and_then(handlers::create_player));
+            .and(warp::path::param())
+            .and_then(handlers::delete_player));
 
     let routes = health_route
         .or(players_route)
