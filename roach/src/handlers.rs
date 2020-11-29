@@ -37,12 +37,19 @@ pub async fn get_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection> {
 
 pub async fn create_player(db: DBPool, body: CreatePlayerBody) -> Result<impl Reply, Rejection> {
     let (new_player, token) = Player::new(body.name);
-    diesel::insert_into(players::table)
-        .values(new_player.insertable())
+    new_player.insertable()
+        .insert_into(players::table)
         .execute_async(&db)
         .await
         .expect("couldn't insert new player");
-    Ok(json(&NewPlayerResponse { player: new_player, token }))
+    // sqlite doesn't let us get the result of an insert, so do another fetch (since token_hash is
+    // unique)
+    let db_player = players::table
+        .filter(players::token_hash.eq(new_player.token_hash))
+        .get_result_async::<Player>(&db)
+        .await
+        .expect("couldn't find newly created player");
+    Ok(json(&NewPlayerResponse { player: db_player, token }))
 }
 
 pub async fn delete_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection> {
