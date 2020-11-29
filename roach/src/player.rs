@@ -6,11 +6,13 @@ use crate::schema::players;
 
 const INITIAL_ELO: i32 = 1500;
 
-#[derive(PartialEq, Debug, Serialize, Queryable)]
+#[derive(PartialEq, Debug, Serialize, Queryable, Clone)]
 pub struct Player {
     pub id: Option<i32>,
     pub name: String,
     pub elo: i32,
+
+    #[serde(skip_serializing)]
     pub token_hash: String,
 }
 
@@ -22,7 +24,7 @@ pub struct NewPlayer {
     pub token_hash: String,
 }
 
-fn hash_string(string: &str) -> String {
+pub fn hash_string(string: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(string);
     format!("{:x}", hasher.finalize())

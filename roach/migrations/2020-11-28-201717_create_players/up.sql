@@ -1,6 +1,6 @@
-CREATE TABLE players (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    elo INTEGER NOT NULL,
-    token_hash TEXT UNIQUE NOT NULL
+create table players (
+    id integer primary key,
+    name text not null,
+    elo integer not null,
+    token_hash text unique not null
 )

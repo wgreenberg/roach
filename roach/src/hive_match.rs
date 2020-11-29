@@ -1,14 +1,21 @@
+use serde::{Serialize, Serializer};
 use crate::player::Player;
 use crate::client::{Client, ClientError};
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
+use hive::engine;
 use std::convert::From;
 
-#[derive(PartialEq, Debug)]
-pub struct HiveMatch<'a> {
-    pub white: &'a Player,
-    pub black: &'a Player,
+fn serialize_game_type<S>(game_type: &GameType, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    s.serialize_str(&format!("{}", game_type))
+}
+
+#[derive(PartialEq, Debug, Serialize, Clone)]
+pub struct HiveMatch {
+    pub white: Player,
+    pub black: Player,
+    #[serde(serialize_with = "serialize_game_type")]
     pub game_type: GameType,
 }
 
@@ -48,14 +55,18 @@ fn strip_engine_output(output: &str) -> Result<&str, MatchError> {
         .ok_or(MatchError::ProtocolError(format!("Invalid engine output {}", output)))
 }
 
-impl<'a> HiveMatch<'a> {
-    pub fn new(p1: &'a Player, p2: &'a Player, game_type: GameType) -> HiveMatch<'a> {
+impl HiveMatch {
+    pub fn new(p1: Player, p2: Player, game_type: GameType) -> HiveMatch {
         // TODO randomize this
         HiveMatch {
             white: p1,
             black: p2,
             game_type,
         }
+    }
+
+    pub fn contains_player(&self, player: &Player) -> bool {
+        self.white.id == player.id || self.black.id == player.id
     }
 
     pub fn create_session<T>(&mut self, b_client: T, w_client: T) -> HiveSession<T> where T: Client {
