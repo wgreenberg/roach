@@ -1,6 +1,6 @@
 use warp::{http::StatusCode, reply::json, Reply, Rejection};
 use serde::Serialize;
-use crate::db::DBPool;
+use crate::db::{DBPool, insert_match, get_last_row_id, find_notstarted_match_for_player};
 use crate::player::{Player, hash_string};
 use crate::matchmaker::Matchmaker;
 use crate::hive_match::HiveMatch;
@@ -79,23 +79,27 @@ pub async fn enter_matchmaking(db: DBPool, token: String, matchmaker: Arc<RwLock
     Ok(StatusCode::OK)
 }
 
-pub async fn check_matchmaking(db: DBPool, token: String, matchmaker: Arc<RwLock<Matchmaker>>, active_matches: Arc<RwLock<Vec<HiveMatch>>>) -> Result<impl Reply, Rejection> {
+pub async fn check_matchmaking(db: DBPool, token: String, matchmaker: Arc<RwLock<Matchmaker>>) -> Result<impl Reply, Rejection> {
     let player = players::table
         .filter(players::token_hash.eq(hash_string(&token)))
         .get_result_async::<Player>(&db)
         .await
         .expect("couldn't get player w/ token hash");
-    let existing_match = active_matches.read().await.iter().find(|m| m.contains_player(&player)).cloned();
+    let existing_match = find_notstarted_match_for_player(&db, &player).await
+        .expect("couldn't check db for existing match");
     if existing_match.is_some() {
-        return Ok(warp::reply::with_status(json(&MatchmakingResponse { match_info: existing_match }), StatusCode::OK));
+        let response = MatchmakingResponse { match_info: existing_match };
+        return Ok(warp::reply::with_status(json(&response), StatusCode::OK));
     }
     if matchmaker.read().await.is_queued(player.clone()) {
         let match_info = matchmaker.write().await.find_match(player);
         if let Some(hive_match) = match_info.clone() {
-            active_matches.write().await.push(hive_match.clone());
+            insert_match(&db, &hive_match).await.expect("couldn't insert hive match");
         }
-        Ok(warp::reply::with_status(json(&MatchmakingResponse { match_info }), StatusCode::OK))
+        let response = MatchmakingResponse { match_info };
+        Ok(warp::reply::with_status(json(&response), StatusCode::OK))
     } else {
-        Ok(warp::reply::with_status(json(&MatchmakingResponse { match_info: None }), StatusCode::FORBIDDEN))
+        let response = MatchmakingResponse { match_info: None };
+        Ok(warp::reply::with_status(json(&response), StatusCode::FORBIDDEN))
     }
 }

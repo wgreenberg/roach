@@ -1,1 +1,1 @@
-DROP TABLE players
+drop table players

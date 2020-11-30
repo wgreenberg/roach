@@ -1,6 +1,7 @@
 use serde::{Serialize, Serializer};
 use crate::player::Player;
 use crate::client::{Client, ClientError};
+use crate::schema::matches;
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
@@ -11,10 +12,29 @@ fn serialize_game_type<S>(game_type: &GameType, s: S) -> Result<S::Ok, S::Error>
     s.serialize_str(&format!("{}", game_type))
 }
 
+#[derive(Debug, Insertable)]
+#[table_name = "matches"]
+pub struct MatchRowInsertable {
+    pub white_player_id: i32,
+    pub black_player_id: i32,
+    pub game_type: String,
+    pub status: String,
+}
+
+#[derive(Debug, Queryable)]
+pub struct MatchRow {
+    pub id: i32,
+    pub white_player_id: i32,
+    pub black_player_id: i32,
+    pub game_type: String,
+    pub status: String,
+}
+
 #[derive(PartialEq, Debug, Serialize, Clone)]
 pub struct HiveMatch {
-    pub white: Player,
+    pub id: Option<i32>,
     pub black: Player,
+    pub white: Player,
     #[serde(serialize_with = "serialize_game_type")]
     pub game_type: GameType,
 }
@@ -59,9 +79,19 @@ impl HiveMatch {
     pub fn new(p1: Player, p2: Player, game_type: GameType) -> HiveMatch {
         // TODO randomize this
         HiveMatch {
+            id: None,
             white: p1,
             black: p2,
             game_type,
+        }
+    }
+
+    pub fn insertable(&self) -> MatchRowInsertable {
+        MatchRowInsertable {
+            white_player_id: self.white.id,
+            black_player_id: self.black.id,
+            game_type: format!("{}", self.game_type),
+            status: "NotStarted".to_string(),
         }
     }
 

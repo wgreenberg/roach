@@ -8,7 +8,7 @@ const INITIAL_ELO: i32 = 1500;
 
 #[derive(PartialEq, Debug, Serialize, Queryable, Clone)]
 pub struct Player {
-    pub id: Option<i32>,
+    pub id: i32,
     pub name: String,
     pub elo: i32,
 
@@ -18,7 +18,7 @@ pub struct Player {
 
 #[derive(Insertable)]
 #[table_name = "players"]
-pub struct NewPlayer {
+pub struct PlayerRowInsertable {
     pub name: String,
     pub elo: i32,
     pub token_hash: String,
@@ -40,7 +40,7 @@ fn random_token() -> String {
 impl Player {
     pub fn new(name: String) -> (Player, String) {
         let mut player = Player {
-            id: None,
+            id: 0,
             name,
             elo: INITIAL_ELO,
             token_hash: "".to_string(),
@@ -49,8 +49,8 @@ impl Player {
         (player, token)
     }
 
-    pub fn insertable(&self) -> NewPlayer {
-        NewPlayer {
+    pub fn insertable(&self) -> PlayerRowInsertable {
+        PlayerRowInsertable {
             name: self.name.clone(),
             elo: self.elo,
             token_hash: self.token_hash.clone(),

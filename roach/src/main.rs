@@ -23,8 +23,6 @@ mod schema;
 #[tokio::main]
 async fn main() {
     let matchmaker = Arc::new(RwLock::new(Matchmaker::new(GameType::Base)));
-    let active_matches: Vec<HiveMatch> = Vec::new();
-    let active_matches_rw = Arc::new(RwLock::new(active_matches));
     dotenv().ok();
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db_pool = db::create_db_pool(&db_url);
@@ -65,7 +63,6 @@ async fn main() {
             .and(filters::with(db_pool.clone()))
             .and(warp::filters::header::header("x-player-auth"))
             .and(filters::with(matchmaker.clone()))
-            .and(filters::with(active_matches_rw.clone()))
             .and_then(handlers::check_matchmaking));
 
     let routes = health_route
