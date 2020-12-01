@@ -3,7 +3,8 @@
 members = [
     "hive",
     "ai",
-    "roach",
+    "roach-server",
+    "roach-client",
 ]
 
 [profile.release]
