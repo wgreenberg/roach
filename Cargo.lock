@@ -1300,6 +1300,7 @@ dependencies = [
  "async-trait",
  "diesel",
  "dotenv",
+ "futures",
  "hive",
  "r2d2",
  "rand 0.7.3",
