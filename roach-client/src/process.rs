@@ -17,7 +17,7 @@ impl Process {
         let stdin = child.stdin.take().expect("child did not have stdin");
         let mut output = BufReader::new(stdout).lines();
         tokio::spawn(async move {
-            let status = child.wait().await
+            let status = child.await
                 .expect("child process encountered an error");
             println!("child status was {}", status);
         });

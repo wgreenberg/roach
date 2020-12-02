@@ -62,7 +62,7 @@ async fn main() {
             let roach_server = matchmaking_opts.value_of("roach server")
                 .unwrap_or("localhost:8000")
                 .to_string();
-            matchmaking(ai_path, engine_type, player_token, roach_server).await
+            matchmaking(ai_path, engine_type, roach_server, player_token).await
         },
         _ => panic!("please specify a valid subcommand"),
     }

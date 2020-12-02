@@ -5,7 +5,7 @@ authors = ["Will Greenberg <willg@eff.org>"]
 edition = "2018"
 
 [dependencies]
-tokio = { version = "0.3.5", features = ["rt-multi-thread", "macros", "process"] }
+tokio = { version = "0.2", features = ["full"] }
 "hive" = { path = "../hive" }
 async-trait = "0.1.42"
 dotenv = "0.15.0"
@@ -16,3 +16,4 @@ reqwest = {version = "0.10.9", features = ["json"] }
 futures = { version = "0.3", default-features = false }
 clap = "2.33.3"
 http = "*"
+tungstenite = "0.11.1"

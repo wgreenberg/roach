@@ -1,7 +1,7 @@
 use reqwest::{Client, Url, Response};
 use futures::{StreamExt, SinkExt, FutureExt};
 use http::{Request, request::Builder};
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use tungstenite::{connect, Message};
 use crate::engine::UHPCompliant;
 
 pub struct MatchmakingClient {
@@ -49,17 +49,20 @@ impl MatchmakingClient {
     }
 
     pub async fn play_match(&self, match_id: i64, mut engine: Box<UHPCompliant>) {
-        let uri = Url::join(&self.roach_url, &format!("game/{}/play", match_id)).unwrap().into_string();
+        let mut uri = Url::join(&self.roach_url, &format!("game/{}/play", match_id)).unwrap();
+        uri.set_scheme("ws").expect("couldn't set scheme");
+        println!("beginning game {}", &uri);
         let req = Builder::new()
-            .uri(uri)
+            .uri(uri.into_string())
             .header("x-player-auth", &self.player_token)
             .body(()).unwrap();
-        let (ws_stream, _) = connect_async(req).await.expect("couldn't connect to websocket endpoint");
-        let (mut ws_tx, mut ws_rx) = ws_stream.split();
-        while let Some(msg) = ws_rx.next().await {
-            let command = msg.unwrap().into_text().expect("couldn't read text from ws message");
+        let (mut ws_stream, _) = connect(req).expect("couldn't connect to websocket endpoint");
+        while let Ok(msg) = ws_stream.read_message() {
+            let command = msg.into_text().expect("couldn't read text from ws message");
+            println!("> {}", &command);
             let output = engine.handle_command(&command).await;
-            ws_tx.send(Message::text(output)).await;
+            println!("< {}", &output);
+            ws_stream.write_message(Message::text(output));
         }
     }
 }
