@@ -166,7 +166,11 @@ async fn player_joined(clients: Clients, p: PlayerJoined, db: DBPool) {
                 break;
             }
         };
-        ws_reciever.send(msg.to_str().unwrap().to_string());
+        match msg.to_str() {
+            Ok(msg_str) => ws_reciever.send(msg_str.to_string())
+                .expect("failed to send message to client"),
+            _ => break,
+        };
     }
     println!("player {} disconnected", player.id);
 }
