@@ -2,6 +2,7 @@ use serde::{Serialize, Serializer};
 use crate::player::Player;
 use crate::client::{Client, ClientError};
 use crate::schema::{matches, match_outcomes};
+use crate::model::{MatchOutcomeRowInsertable, MatchRowInsertable};
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
@@ -10,22 +11,6 @@ use std::convert::From;
 
 fn serialize_game_type<S>(game_type: &GameType, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
     s.serialize_str(&format!("{}", game_type))
-}
-
-#[derive(Debug, Insertable)]
-#[table_name = "matches"]
-pub struct MatchRowInsertable {
-    pub white_player_id: i32,
-    pub black_player_id: i32,
-    pub game_type: String,
-}
-
-#[derive(Debug, Queryable)]
-pub struct MatchRow {
-    pub id: i32,
-    pub white_player_id: i32,
-    pub black_player_id: i32,
-    pub game_type: String,
 }
 
 #[derive(PartialEq, Debug, Serialize, Clone)]
@@ -45,34 +30,10 @@ pub struct MatchOutcome {
     pub is_fault: bool,
 }
 
-#[derive(Queryable)]
-pub struct MatchOutcomeRow {
-    pub id: i32,
-    pub match_id: i32,
-    pub winner_id: Option<i32>,
-    pub loser_id: Option<i32>,
-    pub is_draw: bool,
-    pub is_fault: bool,
-    pub comment: String,
-    pub game_string: String,
-}
-
-#[derive(Debug, Insertable)]
-#[table_name = "match_outcomes"]
-pub struct MatchOutcomeRowInsertable {
-    pub match_id: i32,
-    pub winner_id: Option<i32>,
-    pub loser_id: Option<i32>,
-    pub is_draw: bool,
-    pub is_fault: bool,
-    pub comment: String,
-    pub game_string: String,
-}
-
 impl MatchOutcome {
     pub fn insertable(&self, hive_match: &HiveMatch) -> MatchOutcomeRowInsertable {
-        let white_id = hive_match.white.id;
-        let black_id = hive_match.black.id;
+        let white_id = hive_match.white.id.unwrap();
+        let black_id = hive_match.black.id.unwrap();
         let (winner_id, loser_id, is_draw) = match self.status {
             GameStatus::Win(Color::Black) => (Some(black_id), Some(white_id), false),
             GameStatus::Win(Color::White) => (Some(white_id), Some(black_id), false),
@@ -147,8 +108,8 @@ impl HiveMatch {
 
     pub fn insertable(&self) -> MatchRowInsertable {
         MatchRowInsertable {
-            white_player_id: self.white.id,
-            black_player_id: self.black.id,
+            white_player_id: self.white.id.unwrap(),
+            black_player_id: self.black.id.unwrap(),
             game_type: format!("{}", self.game_type),
         }
     }

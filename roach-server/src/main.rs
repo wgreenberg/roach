@@ -6,7 +6,6 @@ use hive::game_state::GameType;
 use tokio::sync::{RwLock};
 use std::sync::{Arc};
 use crate::matchmaker::Matchmaker;
-use crate::hive_match::HiveMatch;
 use crate::player::Player;
 use crate::db::{DBPool};
 use crate::client::WebsocketClient;
@@ -22,8 +21,8 @@ mod db;
 mod filters;
 mod handlers;
 mod schema;
+mod model;
 
-pub type PlayerJoined = (HiveMatch, warp::filters::ws::WebSocket, Player);
 pub type Clients = Arc<RwLock<HashMap<i32, WebsocketClient>>>;
 
 #[tokio::main]
