@@ -6,10 +6,10 @@ use serde::Serialize;
 use crate::db::{DBPool, insert_match, get_last_row_id, find_notstarted_match_for_player};
 use crate::player::{Player, hash_string};
 use crate::matchmaker::Matchmaker;
-use crate::hive_match::{HiveMatch, MatchRow, HiveSession};
+use crate::hive_match::{HiveMatch, MatchRow, HiveSession, MatchOutcome};
 use crate::client::WebsocketClient;
 use serde::Deserialize;
-use crate::schema::{players, matches};
+use crate::schema::{players, matches, match_outcomes};
 use tokio_diesel::*;
 use diesel::prelude::*;
 use tokio::sync::{RwLock, mpsc::Sender};
@@ -123,12 +123,6 @@ pub async fn get_game(id: i32, db: DBPool) -> Result<impl Reply, Rejection> {
     Ok(json(&game))
 }
 
-async fn run_game(mut session: HiveSession<WebsocketClient>, db: DBPool) {
-    let result = session.play().await;
-    // TODO figure out how to close client websocket connections after the game
-    dbg!(result);
-}
-
 async fn player_joined(clients: Clients, p: PlayerJoined, db: DBPool) {
     let (mut game, socket, player) = p;
     let match_id = game.id.unwrap();
@@ -144,8 +138,20 @@ async fn player_joined(clients: Clients, p: PlayerJoined, db: DBPool) {
     {
         let mut c = clients.write().await;
         if let Some(other_client) = c.remove(&match_id) {
-            let session = game.create_session(client, other_client);
-            tokio::task::spawn(run_game(session, db));
+            let mut session = game.create_session(client, other_client);
+            tokio::spawn(async move {
+                match session.play().await {
+                    Ok(outcome) => {
+                        println!("game {} outcome: {}, {}, {}", match_id, outcome.status, outcome.comment, outcome.game_string);
+                        outcome.insertable(&game)
+                            .insert_into(match_outcomes::table)
+                            .execute_async(&db)
+                            .await
+                            .expect("couldn't insert match outcome");
+                    },
+                    Err(err) => eprintln!("hive session failed due to error: {:?}", err),
+                }
+            });
         } else {
             c.insert(match_id, client);
         }

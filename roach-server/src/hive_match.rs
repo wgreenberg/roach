@@ -1,7 +1,7 @@
 use serde::{Serialize, Serializer};
 use crate::player::Player;
 use crate::client::{Client, ClientError};
-use crate::schema::matches;
+use crate::schema::{matches, match_outcomes};
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
@@ -18,7 +18,6 @@ pub struct MatchRowInsertable {
     pub white_player_id: i32,
     pub black_player_id: i32,
     pub game_type: String,
-    pub status: String,
 }
 
 #[derive(Debug, Queryable)]
@@ -27,7 +26,6 @@ pub struct MatchRow {
     pub white_player_id: i32,
     pub black_player_id: i32,
     pub game_type: String,
-    pub status: String,
 }
 
 #[derive(PartialEq, Debug, Serialize, Clone)]
@@ -39,7 +37,68 @@ pub struct HiveMatch {
     pub game_type: GameType,
 }
 
-type MatchResult = Result<GameStatus, MatchError>;
+#[derive(Debug)]
+pub struct MatchOutcome {
+    pub status: GameStatus,
+    pub comment: String,
+    pub game_string: String,
+    pub is_fault: bool,
+}
+
+#[derive(Queryable)]
+pub struct MatchOutcomeRow {
+    pub id: i32,
+    pub match_id: i32,
+    pub winner_id: Option<i32>,
+    pub loser_id: Option<i32>,
+    pub is_draw: bool,
+    pub is_fault: bool,
+    pub comment: String,
+    pub game_string: String,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "match_outcomes"]
+pub struct MatchOutcomeRowInsertable {
+    pub match_id: i32,
+    pub winner_id: Option<i32>,
+    pub loser_id: Option<i32>,
+    pub is_draw: bool,
+    pub is_fault: bool,
+    pub comment: String,
+    pub game_string: String,
+}
+
+impl MatchOutcome {
+    pub fn insertable(&self, hive_match: &HiveMatch) -> MatchOutcomeRowInsertable {
+        let white_id = hive_match.white.id;
+        let black_id = hive_match.black.id;
+        let (winner_id, loser_id, is_draw) = match self.status {
+            GameStatus::Win(Color::Black) => (Some(black_id), Some(white_id), false),
+            GameStatus::Win(Color::White) => (Some(white_id), Some(black_id), false),
+            GameStatus::Draw => (None, None, true),
+            _ => panic!("game isn't over yet!"),
+        };
+        MatchOutcomeRowInsertable {
+            match_id: hive_match.id.unwrap(),
+            winner_id,
+            loser_id,
+            is_draw,
+            is_fault: self.is_fault, 
+            game_string: self.game_string.clone(),
+            comment: self.comment.clone(),
+        }
+    }
+}
+
+type MatchResult = Result<MatchOutcome, MatchError>;
+
+#[derive(PartialEq, Debug)]
+pub enum MatchErrorWithBlame {
+    White(MatchError),
+    Black(MatchError),
+    Server(MatchError),
+}
 
 #[derive(PartialEq, Debug)]
 pub enum MatchError {
@@ -91,7 +150,6 @@ impl HiveMatch {
             white_player_id: self.white.id,
             black_player_id: self.black.id,
             game_type: format!("{}", self.game_type),
-            status: "NotStarted".to_string(),
         }
     }
 
@@ -115,29 +173,47 @@ pub struct HiveSession<T> where T: Client {
     game: GameState,
 }
 
+fn white<T>(err: T) -> MatchErrorWithBlame where T: Into<MatchError> {
+    MatchErrorWithBlame::White(err.into())
+}
+
+fn black<T>(err: T) -> MatchErrorWithBlame where T: Into<MatchError> {
+    MatchErrorWithBlame::White(err.into())
+}
+
 impl<T> HiveSession<T> where T: Client {
-    async fn initialize(&mut self) -> Result<(), MatchError> {
+    async fn initialize(&mut self) -> Result<(), MatchErrorWithBlame> {
         let cmd = format!("newgame {}", self.game);
-        let w_state = self.w_client.submit_command(cmd.clone()).await?;
-        self.check_game_state(w_state)?;
-        let b_state = self.b_client.submit_command(cmd.clone()).await?;
-        self.check_game_state(b_state)?;
+        let w_state = self.w_client.submit_command(cmd.clone()).await.map_err(white)?;
+        self.check_game_state(w_state).map_err(white)?;
+        let b_state = self.b_client.submit_command(cmd.clone()).await.map_err(black)?;
+        self.check_game_state(b_state).map_err(black)?;
         Ok(())
     }
 
-    async fn play_turn(&mut self) -> Result<(), MatchError> {
-        let bestmove_output = match self.game.current_player {
-            Color::White => self.w_client.submit_command("bestmove".into()).await?,
-            Color::Black => self.b_client.submit_command("bestmove".into()).await?,
+    async fn play_turn(&mut self) -> Result<(), MatchErrorWithBlame> {
+        let play_cmd = match self.game.current_player {
+            Color::White => {
+                let bestmove_output = self.w_client.submit_command("bestmove".into())
+                    .await.map_err(white)?;
+                let turn_string = strip_engine_output(&bestmove_output).map_err(white)?;
+                let turn = parse_move_string(turn_string, &self.game.board, &self.game.stacks).map_err(white)?;
+                self.game.submit_turn(turn).map_err(white)?;
+                format!("play {}", turn_string)
+            },
+            Color::Black => {
+                let bestmove_output = self.b_client.submit_command("bestmove".into())
+                    .await.map_err(black)?;
+                let turn_string = strip_engine_output(&bestmove_output).map_err(black)?;
+                let turn = parse_move_string(turn_string, &self.game.board, &self.game.stacks).map_err(black)?;
+                self.game.submit_turn(turn).map_err(black)?;
+                format!("play {}", turn_string)
+            }
         };
-        let turn_string = strip_engine_output(&bestmove_output)?;
-        let turn = parse_move_string(turn_string, &self.game.board, &self.game.stacks)?;
-        self.game.submit_turn(turn)?;
-        let play_cmd = format!("play {}", turn_string);
-        let w_client_state = self.w_client.submit_command(play_cmd.clone()).await?;
-        self.check_game_state(w_client_state)?;
-        let b_client_state = self.b_client.submit_command(play_cmd.clone()).await?;
-        self.check_game_state(b_client_state)?;
+        let w_client_state = self.w_client.submit_command(play_cmd.clone()).await.map_err(white)?;
+        self.check_game_state(w_client_state).map_err(white)?;
+        let b_client_state = self.b_client.submit_command(play_cmd.clone()).await.map_err(black)?;
+        self.check_game_state(b_client_state).map_err(black)?;
         Ok(())
     }
 
@@ -152,12 +228,37 @@ impl<T> HiveSession<T> where T: Client {
         }
     }
 
-    pub async fn play(&mut self) -> MatchResult where T: Client {
+    async fn run_game(&mut self) -> Result<GameStatus, MatchErrorWithBlame> {
         self.initialize().await?;
         while !self.game.is_over() {
             self.play_turn().await?;
         }
         Ok(self.game.status.clone())
+    }
+
+    pub async fn play(&mut self) -> MatchResult {
+        let game_string = format!("{}", self.game);
+        match self.run_game().await {
+            Ok(status) => Ok(MatchOutcome {
+                status,
+                game_string,
+                comment: "Game finished normally".to_string(),
+                is_fault: false,
+            }),
+            Err(err) => {
+                let (status, comment) = match err {
+                    MatchErrorWithBlame::White(err) => (GameStatus::Win(Color::Black), format!("{:?}", err)),
+                    MatchErrorWithBlame::Black(err) => (GameStatus::Win(Color::White), format!("{:?}", err)),
+                    MatchErrorWithBlame::Server(err) => return Err(err),
+                };
+                Ok(MatchOutcome {
+                    status,
+                    game_string,
+                    comment,
+                    is_fault: true,
+                })
+            }
+        }
     }
 }
 
