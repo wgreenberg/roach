@@ -3,6 +3,7 @@ use futures::{StreamExt, SinkExt, FutureExt};
 use http::{Request, request::Builder};
 use tungstenite::{connect, Message};
 use crate::engine::UHPCompliant;
+use std::{thread, time};
 
 pub struct MatchmakingClient {
     roach_url: Url,
@@ -35,6 +36,7 @@ impl MatchmakingClient {
 
     pub async fn wait_for_match(&self) -> Result<i64, reqwest::Error> {
         while let Ok(res) = self.poll_matchmaking().await {
+            println!("waiting for a match...");
             let obj: serde_json::Value = res.json().await?;
             match &obj["match_info"] {
                 serde_json::Value::Object(value) => {
@@ -42,7 +44,10 @@ impl MatchmakingClient {
                     let match_id = value.get("id").unwrap().as_i64().unwrap();
                     return Ok(match_id);
                 },
-                _ => continue,
+                _ => {
+                    thread::sleep(time::Duration::from_millis(500));
+                    continue;
+                },
             }
         }
         todo!();
