@@ -7,6 +7,11 @@ pub struct Matchmaker {
     game_type: GameType,
 }
 
+#[derive(Debug)]
+pub enum MatchmakingError {
+    PlayerAlreadyInQueue
+}
+
 impl Matchmaker {
     pub fn new(game_type: GameType) -> Matchmaker {
         Matchmaker {
@@ -15,12 +20,17 @@ impl Matchmaker {
         }
     }
 
-    pub fn is_queued(&self, player: Player) -> bool {
-        self.pool.contains(&player)
+    pub fn is_queued(&self, player: &Player) -> bool {
+        self.pool.iter().find(|p| p.id == player.id).is_some()
     }
 
-    pub fn add_to_pool(&mut self, player: Player) {
-        self.pool.push(player);
+    pub fn add_to_pool(&mut self, player: Player) -> Result<(), MatchmakingError> {
+        if self.is_queued(&player) {
+            Err(MatchmakingError::PlayerAlreadyInQueue)
+        } else {
+            self.pool.push(player);
+            Ok(())
+        }
     }
 
     pub fn find_match(&mut self, player: Player) -> Option<HiveMatch> {
@@ -41,17 +51,27 @@ mod tests {
 
     #[test]
     fn test_basic_matchmaking() {
-        let (p1, _) = Player::new("foo".into());
-        let (p2, _) = Player::new("bar".into());
+        let (mut p1, _) = Player::new("foo".into());
+        p1.id = Some(1);
+        let (mut p2, _) = Player::new("bar".into());
+        p2.id = Some(2);
         let mut mm = Matchmaker::new(GameType::Base);
-        mm.add_to_pool(p1.clone());
+        assert!(mm.add_to_pool(p1.clone()).is_ok());
         assert_eq!(mm.find_match(p1.clone()), None);
-        mm.add_to_pool(p2.clone());
+        assert!(mm.add_to_pool(p2.clone()).is_ok());
         let m = mm.find_match(p1.clone());
         assert!(m.is_some());
         let m = m.unwrap();
         assert!(m.white == p1 || m.white == p2);
         assert!(m.black == p1 || m.black == p2);
         assert_eq!(mm.pool.len(), 0);
+    }
+
+    #[test]
+    fn test_preventing_duplicates() {
+        let (p1, _) = Player::new("foo".into());
+        let mut mm = Matchmaker::new(GameType::Base);
+        assert!(mm.add_to_pool(p1.clone()).is_ok());
+        assert!(mm.add_to_pool(p1.clone()).is_err());
     }
 }

@@ -198,8 +198,9 @@ impl<T> HiveSession<T> where T: Client {
     }
 
     pub async fn play(&mut self) -> MatchResult {
+        let game_result = self.run_game().await;
         let game_string = format!("{}", self.game);
-        match self.run_game().await {
+        match game_result {
             Ok(status) => Ok(MatchOutcome {
                 status,
                 game_string,

@@ -87,7 +87,9 @@ pub async fn enter_matchmaking(db: DBPool, token: String, matchmaker: Arc<RwLock
         .get_result_async::<PlayerRow>(&db)
         .await
         .expect("couldn't get player w/ token hash");
-    matchmaker.write().await.add_to_pool(player.into());
+    matchmaker.write().await
+        .add_to_pool(player.into())
+        .expect("player already in queue");
     Ok(StatusCode::OK)
 }
 
@@ -104,7 +106,7 @@ pub async fn check_matchmaking(db: DBPool, token: String, matchmaker: Arc<RwLock
         let response = MatchmakingResponse { match_info: existing_match };
         return Ok(warp::reply::with_status(json(&response), StatusCode::OK));
     }
-    if matchmaker.read().await.is_queued(player.clone()) {
+    if matchmaker.read().await.is_queued(&player) {
         let response = match matchmaker.write().await.find_match(player.clone()) {
             Some(hive_match) => {
                 insert_match(&db, &hive_match).await.expect("couldn't insert hive match");
