@@ -1,8 +1,6 @@
 create table matches (
-    id integer primary key not null,
-    white_player_id integer not null,
-    black_player_id integer not null,
-    game_type text not null,
-    foreign key (white_player_id) references players(id),
-    foreign key (white_player_id) references players(id)
+    id serial primary key not null,
+    white_player_id integer not null references players(id),
+    black_player_id integer not null references players(id),
+    game_type text not null
 )

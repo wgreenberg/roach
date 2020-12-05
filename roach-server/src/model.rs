@@ -6,7 +6,6 @@ use tokio_diesel::*;
 use diesel::prelude::*;
 use diesel::r2d2::{Pool, ConnectionManager};
 use diesel::result::Error;
-use diesel::sqlite::SqliteConnection;
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser;
 use std::convert::From;

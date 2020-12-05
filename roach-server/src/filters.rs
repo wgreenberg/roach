@@ -1,6 +1,5 @@
 use std::convert::Infallible;
 use warp::{Filter, Rejection};
-use diesel::sqlite::SqliteConnection;
 use diesel::r2d2;
 use crate::db::DBPool;
 

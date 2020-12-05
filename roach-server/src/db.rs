@@ -1,6 +1,6 @@
 use tokio_diesel::*;
 use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
+use diesel::pg::PgConnection;
 use diesel::r2d2::{Pool, ConnectionManager};
 use diesel::result::Error;
 use crate::schema::*;
@@ -8,7 +8,7 @@ use crate::player::Player;
 use crate::hive_match::*;
 use crate::model::*;
 
-pub type DBPool = Pool<ConnectionManager<SqliteConnection>>;
+pub type DBPool = Pool<ConnectionManager<PgConnection>>;
 
 pub fn create_db_pool(db_url: &str) -> DBPool {
     Pool::builder()

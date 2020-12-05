@@ -1,9 +1,9 @@
 table! {
     match_outcomes (id) {
-        id -> Integer,
-        match_id -> Integer,
-        winner_id -> Nullable<Integer>,
-        loser_id -> Nullable<Integer>,
+        id -> Int4,
+        match_id -> Int4,
+        winner_id -> Nullable<Int4>,
+        loser_id -> Nullable<Int4>,
         is_draw -> Bool,
         is_fault -> Bool,
         comment -> Text,
@@ -13,18 +13,18 @@ table! {
 
 table! {
     matches (id) {
-        id -> Integer,
-        white_player_id -> Integer,
-        black_player_id -> Integer,
+        id -> Int4,
+        white_player_id -> Int4,
+        black_player_id -> Int4,
         game_type -> Text,
     }
 }
 
 table! {
     players (id) {
-        id -> Integer,
+        id -> Int4,
         name -> Text,
-        elo -> Integer,
+        elo -> Int4,
         token_hash -> Text,
     }
 }
