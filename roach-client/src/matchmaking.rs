@@ -24,7 +24,8 @@ impl MatchmakingClient {
         self.http_client.post(Url::join(&self.roach_url, "matchmaking").unwrap())
             .header("x-player-auth", &self.player_token)
             .send()
-            .await
+            .await?
+            .error_for_status()
     }
 
     async fn poll_matchmaking(&self) -> Result<Response, reqwest::Error> {
@@ -35,22 +36,27 @@ impl MatchmakingClient {
     }
 
     pub async fn wait_for_match(&self) -> Result<i64, reqwest::Error> {
-        while let Ok(res) = self.poll_matchmaking().await {
+        while let res = self.poll_matchmaking().await? {
             println!("waiting for a match...");
+            let status = res.status();
             let obj: serde_json::Value = res.json().await?;
-            match &obj["match_info"] {
-                serde_json::Value::Object(value) => {
-                    println!("{:?}", value);
-                    let match_id = value.get("id").unwrap().as_i64().unwrap();
-                    return Ok(match_id);
-                },
-                _ => {
-                    thread::sleep(time::Duration::from_millis(500));
-                    continue;
-                },
+            if status.is_success() {
+                match &obj["match_info"] {
+                    serde_json::Value::Object(value) => {
+                        println!("{:?}", value);
+                        let match_id = value.get("id").unwrap().as_i64().unwrap();
+                        return Ok(match_id);
+                    },
+                    _ => {
+                        thread::sleep(time::Duration::from_millis(500));
+                        continue;
+                    },
+                }
+            } else {
+                panic!("non-successful status code {} when matchmaking. error: {}", status, obj);
             }
         }
-        todo!();
+        unreachable!();
     }
 
     pub async fn play_match(&self, match_id: i64, mut engine: Box<UHPCompliant>) {

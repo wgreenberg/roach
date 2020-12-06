@@ -9,7 +9,8 @@ pub struct Matchmaker {
 
 #[derive(Debug)]
 pub enum MatchmakingError {
-    PlayerAlreadyInQueue
+    PlayerAlreadyInQueue,
+    PlayerNotQueued,
 }
 
 impl Matchmaker {
@@ -33,14 +34,19 @@ impl Matchmaker {
         }
     }
 
-    pub fn find_match(&mut self, player: Player) -> Option<HiveMatch> {
+    pub fn find_match(&mut self, player: Player) -> Result<Option<HiveMatch>, MatchmakingError> {
+        if !self.is_queued(&player) {
+            return Err(MatchmakingError::PlayerNotQueued);
+        }
+
         // TODO base this on ELO
         if self.pool.len() > 1 {
             let idx = self.pool.iter().position(|p| *p == player).unwrap();
             let player = self.pool.remove(idx);
-            self.pool.pop().map(move |opponent| HiveMatch::new(player, opponent, self.game_type))
+            Ok(self.pool.pop()
+                .map(move |opponent| HiveMatch::new(player, opponent, self.game_type)))
         } else {
-            None
+            Ok(None)
         }
     }
 }
@@ -56,10 +62,11 @@ mod tests {
         let (mut p2, _) = Player::new("bar".into());
         p2.id = Some(2);
         let mut mm = Matchmaker::new(GameType::Base);
+        assert!(mm.find_match(p1.clone()).is_err());
         assert!(mm.add_to_pool(p1.clone()).is_ok());
-        assert_eq!(mm.find_match(p1.clone()), None);
+        assert_eq!(mm.find_match(p1.clone()).unwrap(), None);
         assert!(mm.add_to_pool(p2.clone()).is_ok());
-        let m = mm.find_match(p1.clone());
+        let m = mm.find_match(p1.clone()).unwrap();
         assert!(m.is_some());
         let m = m.unwrap();
         assert!(m.white == p1 || m.white == p2);

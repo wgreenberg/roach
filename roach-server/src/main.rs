@@ -9,6 +9,7 @@ use crate::matchmaker::Matchmaker;
 use crate::player::Player;
 use crate::db::{DBPool};
 use crate::client::WebsocketClient;
+use crate::err_handler::handle_rejection;
 #[macro_use] extern crate diesel;
 use dotenv::dotenv;
 use std::env;
@@ -20,6 +21,7 @@ mod client;
 mod db;
 mod filters;
 mod handlers;
+mod err_handler;
 mod schema;
 mod model;
 
@@ -89,6 +91,7 @@ async fn main() {
         .or(matchmaking_route)
         .or(game_route)
         .or(play_route)
+        .recover(handle_rejection)
         .with(warp::cors().allow_any_origin());
 
     let server_handle = warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
