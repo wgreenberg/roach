@@ -63,13 +63,13 @@ async fn main() {
     let matchmaking_route = matchmaking
         .and(warp::post())
         .and(filters::with(db_pool.clone()))
-        .and(warp::filters::header::header("x-player-auth"))
+        .and(filters::with_player_auth(db_pool.clone()))
         .and(filters::with(matchmaker.clone()))
         .and_then(handlers::enter_matchmaking)
         .or(matchmaking
             .and(warp::get())
             .and(filters::with(db_pool.clone()))
-            .and(warp::filters::header::header("x-player-auth"))
+            .and(filters::with_player_auth(db_pool.clone()))
             .and(filters::with(matchmaker.clone()))
             .and_then(handlers::check_matchmaking));
 
@@ -81,7 +81,7 @@ async fn main() {
     let play_route = warp::path!("game" / i32 / "play")
         .and(warp::ws())
         .and(filters::with(db_pool.clone()))
-        .and(warp::filters::header::header("x-player-auth"))
+        .and(filters::with_player_auth(db_pool.clone()))
         .and(filters::with(clients.clone()))
         .and_then(handlers::play_game);
 

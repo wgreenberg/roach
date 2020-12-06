@@ -76,25 +76,14 @@ pub async fn delete_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection>
     Ok(StatusCode::OK)
 }
 
-pub async fn enter_matchmaking(db: DBPool, token: String, matchmaker: Arc<RwLock<Matchmaker>>) -> Result<impl Reply, Rejection> {
-    let player = players::table
-        .filter(players::token_hash.eq(hash_string(&token)))
-        .get_result_async::<PlayerRow>(&db)
-        .await
-        .map_err(db_query_err)?;
+pub async fn enter_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker>>) -> Result<impl Reply, Rejection> {
     matchmaker.write().await
         .add_to_pool(player.into())
         .map_err(matchmaking_err)?;
     Ok(StatusCode::OK)
 }
 
-pub async fn check_matchmaking(db: DBPool, token: String, matchmaker: Arc<RwLock<Matchmaker>>) -> Result<impl Reply, Rejection> {
-    let player: Player = players::table
-        .filter(players::token_hash.eq(hash_string(&token)))
-        .get_result_async::<PlayerRow>(&db)
-        .await
-        .map_err(db_query_err)?
-        .into();
+pub async fn check_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker>>) -> Result<impl Reply, Rejection> {
     let existing_match = find_notstarted_match_for_player(&db, &player).await
         .map_err(db_query_err)?;
     if existing_match.is_some() {
@@ -125,13 +114,7 @@ pub async fn get_game(id: i32, db: DBPool) -> Result<impl Reply, Rejection> {
     Ok(json(&game))
 }
 
-pub async fn play_game(id: i32, ws: warp::ws::Ws, db: DBPool, token: String, clients: Clients) -> Result<impl Reply, Rejection> {
-    let player: Player = players::table
-        .filter(players::token_hash.eq(hash_string(&token)))
-        .get_result_async::<PlayerRow>(&db)
-        .await
-        .map_err(db_query_err)?
-        .into();
+pub async fn play_game(id: i32, ws: warp::ws::Ws, db: DBPool, player: Player, clients: Clients) -> Result<impl Reply, Rejection> {
     let match_row = matches::table
         .filter(matches::id.eq(id))
         .get_result_async::<MatchRow>(&db)

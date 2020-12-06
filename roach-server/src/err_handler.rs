@@ -12,12 +12,18 @@ pub fn matchmaking_err(err: MatchmakingError) -> Rejection {
     reject::custom(ServerError::MatchmakingError(err))
 }
 
+pub fn authentication_err(_: tokio_diesel::AsyncError) -> Rejection {
+    reject::custom(ServerError::AuthenticationError)
+}
+
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("error executing DB query {0}")]
     DbQueryError(#[from] tokio_diesel::AsyncError),
     #[error("matchmaking error {0:?}")]
     MatchmakingError(MatchmakingError),
+    #[error("authentication error")]
+    AuthenticationError,
 }
 
 impl warp::reject::Reject for ServerError {}
@@ -51,7 +57,11 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
                     MatchmakingError::PlayerAlreadyInQueue => "Matchmaking failed: player already in queue",
                     MatchmakingError::PlayerNotQueued => "Matchmaking failed: player not queued yet",
                 };
-            }
+            },
+            ServerError::AuthenticationError => {
+                code = StatusCode::FORBIDDEN;
+                message = "Invalid authorization token";
+            },
         }
     } else {
         eprintln!("unhandled rejection {:?}", err);
