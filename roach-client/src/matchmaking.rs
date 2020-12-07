@@ -35,22 +35,17 @@ impl MatchmakingClient {
             .await
     }
 
-    pub async fn wait_for_match(&self) -> Result<i64, reqwest::Error> {
+    pub async fn wait_for_match(&self) -> Result<(), reqwest::Error> {
         while let res = self.poll_matchmaking().await? {
             println!("waiting for a match...");
             let status = res.status();
             let obj: serde_json::Value = res.json().await?;
             if status.is_success() {
-                match &obj["match_info"] {
-                    serde_json::Value::Object(value) => {
-                        println!("{:?}", value);
-                        let match_id = value.get("id").unwrap().as_i64().unwrap();
-                        return Ok(match_id);
-                    },
-                    _ => {
-                        thread::sleep(time::Duration::from_millis(500));
-                        continue;
-                    },
+                if obj["ready"].as_bool().expect("couldn't get ready value") {
+                    return Ok(())
+                } else {
+                    thread::sleep(time::Duration::from_millis(500));
+                    continue;
                 }
             } else {
                 panic!("non-successful status code {} when matchmaking. error: {}", status, obj);
@@ -59,8 +54,8 @@ impl MatchmakingClient {
         unreachable!();
     }
 
-    pub async fn play_match(&self, match_id: i64, mut engine: Box<UHPCompliant>) {
-        let mut uri = Url::join(&self.roach_url, &format!("game/{}/play", match_id)).unwrap();
+    pub async fn play_match(&self, mut engine: Box<UHPCompliant>) {
+        let mut uri = Url::join(&self.roach_url, "play").unwrap();
         uri.set_scheme("ws").expect("couldn't set scheme");
         println!("beginning game {}", &uri);
         let req = Builder::new()

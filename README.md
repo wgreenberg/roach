@@ -35,9 +35,8 @@ Multiplayer model:
 
 API:
 * POST /matchmaking (auth) - join matchmaking
-* GET /matchmaking (auth) - poll status of a matchmaking ticket; when ready, will
-  provide the URL for a websockets connection
-* GET /play/:player_id/:game_id (auth) - player's websocket endpoint for a game
+* GET /matchmaking (auth) - poll status of a matchmaking ticket
+* GET /play (auth) - player's websocket endpoint for their active game
 * GET /games - list of all completed games
 * GET /games/active - list of all active games
 * GET /game/:id - info for a game, including metadata and UHP session

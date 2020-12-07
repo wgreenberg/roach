@@ -84,7 +84,7 @@ async fn matchmaking(ai_path: String, engine_type: EngineType, roach_server: Str
     let engine = get_engine(ai_path, engine_type);
     let client = MatchmakingClient::new(roach_server, player_token);
     let res = client.enter_matchmaking().await.expect("couldn't enter matchmaking");
-    let match_id = client.wait_for_match().await.expect("couldn't poll for match");
-    client.play_match(match_id, engine).await;
+    client.wait_for_match().await.expect("couldn't poll for match");
+    client.play_match(engine).await;
     dbg!(res);
 }

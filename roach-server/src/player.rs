@@ -42,6 +42,11 @@ impl Player {
         (player, token)
     }
 
+    pub fn id(&self) -> i32 {
+        let err_str = format!("ERR: tried to get id of non-inserted player {:?}", self);
+        self.id.expect(&err_str)
+    }
+
     pub fn roll_token(&mut self) -> String {
         let token = random_token();
         self.token_hash = hash_string(&token);

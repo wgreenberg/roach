@@ -1,8 +1,8 @@
 use serde::{Serialize, Serializer};
 use crate::player::Player;
 use crate::client::{Client, ClientError};
-use crate::schema::{matches, match_outcomes};
-use crate::model::{MatchOutcomeRowInsertable, MatchRowInsertable};
+use crate::schema::{matches};
+use crate::model::MatchRowInsertable;
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
@@ -13,6 +13,10 @@ fn serialize_game_type<S>(game_type: &GameType, s: S) -> Result<S::Ok, S::Error>
     s.serialize_str(&format!("{}", game_type))
 }
 
+fn serialize_game_status<S>(game_status: &GameStatus, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    s.serialize_str(&format!("{}", game_status))
+}
+
 #[derive(PartialEq, Debug, Serialize, Clone)]
 pub struct HiveMatch {
     pub id: Option<i32>,
@@ -20,36 +24,16 @@ pub struct HiveMatch {
     pub white: Player,
     #[serde(serialize_with = "serialize_game_type")]
     pub game_type: GameType,
+    pub outcome: Option<MatchOutcome>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Serialize, Clone)]
 pub struct MatchOutcome {
+    #[serde(serialize_with = "serialize_game_status")]
     pub status: GameStatus,
     pub comment: String,
     pub game_string: String,
     pub is_fault: bool,
-}
-
-impl MatchOutcome {
-    pub fn insertable(&self, hive_match: &HiveMatch) -> MatchOutcomeRowInsertable {
-        let white_id = hive_match.white.id.unwrap();
-        let black_id = hive_match.black.id.unwrap();
-        let (winner_id, loser_id, is_draw) = match self.status {
-            GameStatus::Win(Color::Black) => (Some(black_id), Some(white_id), false),
-            GameStatus::Win(Color::White) => (Some(white_id), Some(black_id), false),
-            GameStatus::Draw => (None, None, true),
-            _ => panic!("game isn't over yet!"),
-        };
-        MatchOutcomeRowInsertable {
-            match_id: hive_match.id.unwrap(),
-            winner_id,
-            loser_id,
-            is_draw,
-            is_fault: self.is_fault, 
-            game_string: self.game_string.clone(),
-            comment: self.comment.clone(),
-        }
-    }
 }
 
 type MatchResult = Result<MatchOutcome, MatchError>;
@@ -97,28 +81,44 @@ fn strip_engine_output(output: &str) -> Result<&str, MatchError> {
 
 impl HiveMatch {
     pub fn new(p1: Player, p2: Player, game_type: GameType) -> HiveMatch {
-        // TODO randomize this
         HiveMatch {
             id: None,
-            white: p1,
-            black: p2,
+            black: p1,
+            white: p2,
             game_type,
+            outcome: None,
         }
     }
 
     pub fn insertable(&self) -> MatchRowInsertable {
+        let outcome = self.outcome.as_ref()
+            .expect("game has no outcome, cannot be inserted to db!");
+        let black_id = self.black.id.unwrap();
+        let white_id = self.white.id.unwrap();
+        let (winner_id, loser_id, is_draw) = match outcome.status {
+            GameStatus::Win(Color::Black) => (Some(black_id), Some(white_id), false),
+            GameStatus::Win(Color::White) => (Some(white_id), Some(black_id), false),
+            GameStatus::Draw => (None, None, true),
+            _ => panic!("game isn't over yet!"),
+        };
         MatchRowInsertable {
-            white_player_id: self.white.id.unwrap(),
             black_player_id: self.black.id.unwrap(),
+            white_player_id: self.white.id.unwrap(),
             game_type: format!("{}", self.game_type),
+            winner_id,
+            loser_id,
+            is_draw,
+            is_fault: outcome.is_fault, 
+            game_string: outcome.game_string.clone(),
+            comment: outcome.comment.clone(),
         }
     }
 
     pub fn contains_player(&self, player: &Player) -> bool {
-        self.white.id == player.id || self.black.id == player.id
+        self.black.id == player.id || self.white.id == player.id
     }
 
-    pub fn create_session<T>(&mut self, b_client: T, w_client: T) -> HiveSession<T> where T: Client {
+    pub fn create_session<T>(&self, b_client: T, w_client: T) -> HiveSession<T> where T: Client {
         let first_player = Color::Black; // TODO randomize this
         HiveSession {
             b_client,
@@ -128,6 +128,7 @@ impl HiveMatch {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct HiveSession<T> where T: Client {
     w_client: T,
     b_client: T,

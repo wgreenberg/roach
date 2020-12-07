@@ -1,5 +1,5 @@
 use crate::db::DBPool;
-use crate::hive_match::HiveMatch;
+use crate::hive_match::{HiveMatch, MatchOutcome};
 use crate::player::Player;
 use crate::schema::*;
 use tokio_diesel::*;
@@ -16,6 +16,12 @@ pub struct MatchRowInsertable {
     pub white_player_id: i32,
     pub black_player_id: i32,
     pub game_type: String,
+    pub winner_id: Option<i32>,
+    pub loser_id: Option<i32>,
+    pub is_draw: bool,
+    pub is_fault: bool,
+    pub comment: String,
+    pub game_string: String,
 }
 
 #[derive(Debug, Queryable)]
@@ -24,6 +30,12 @@ pub struct MatchRow {
     pub white_player_id: i32,
     pub black_player_id: i32,
     pub game_type: String,
+    pub winner_id: Option<i32>,
+    pub loser_id: Option<i32>,
+    pub is_draw: bool,
+    pub is_fault: bool,
+    pub comment: String,
+    pub game_string: String,
 }
 
 impl MatchRow {
@@ -34,37 +46,25 @@ impl MatchRow {
             .await?;
         assert!(players.len() == 2);
         let game_type = parser::parse_game_type(&self.game_type).expect("failed to parse game type");
-        let (white, black) = if players[0].id == self.white_player_id {
+        let (white, black): (Player, Player) = if players[0].id == self.white_player_id {
             (players.remove(0).into(), players.remove(0).into())
         } else {
             (players.remove(1).into(), players.remove(0).into())
         };
-        Ok(HiveMatch { id: Some(self.id), white, black, game_type })
+        let status: GameStatus = match (self.is_draw, self.winner_id) {
+            (true, _) => GameStatus::Draw,
+            (false, winner_id) if winner_id.unwrap() == white.id() => GameStatus::Win(Color::White),
+            (false, winner_id) if winner_id.unwrap() == black.id() => GameStatus::Win(Color::Black),
+            _ => panic!("invalid game status"),
+        };
+        let outcome = MatchOutcome {
+            status,
+            comment: self.comment.clone(),
+            game_string: self.game_string.clone(),
+            is_fault: self.is_fault,
+        };
+        Ok(HiveMatch { id: Some(self.id), white, black, game_type, outcome: Some(outcome) })
     }
-}
-
-#[derive(Queryable)]
-pub struct MatchOutcomeRow {
-    pub id: i32,
-    pub match_id: i32,
-    pub winner_id: Option<i32>,
-    pub loser_id: Option<i32>,
-    pub is_draw: bool,
-    pub is_fault: bool,
-    pub comment: String,
-    pub game_string: String,
-}
-
-#[derive(Debug, Insertable)]
-#[table_name = "match_outcomes"]
-pub struct MatchOutcomeRowInsertable {
-    pub match_id: i32,
-    pub winner_id: Option<i32>,
-    pub loser_id: Option<i32>,
-    pub is_draw: bool,
-    pub is_fault: bool,
-    pub comment: String,
-    pub game_string: String,
 }
 
 #[derive(Insertable)]

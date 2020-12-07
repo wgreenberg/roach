@@ -10,6 +10,7 @@ use crate::player::Player;
 use crate::db::{DBPool};
 use crate::client::WebsocketClient;
 use crate::err_handler::handle_rejection;
+use crate::hive_match::HiveMatch;
 #[macro_use] extern crate diesel;
 use dotenv::dotenv;
 use std::env;
@@ -26,11 +27,11 @@ mod schema;
 mod model;
 
 pub type Clients = Arc<RwLock<HashMap<i32, WebsocketClient>>>;
+pub type PendingGames = Arc<RwLock<Vec<(HiveMatch, Option<WebsocketClient>)>>>;
 
 #[tokio::main]
 async fn main() {
     let matchmaker = Arc::new(RwLock::new(Matchmaker::new(GameType::Base)));
-    let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
     dotenv().ok();
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db_pool = db::create_db_pool(&db_url);
@@ -78,11 +79,11 @@ async fn main() {
         .and(filters::with(db_pool.clone()))
         .and_then(handlers::get_game);
 
-    let play_route = warp::path!("game" / i32 / "play")
+    let play_route = warp::path!("play")
         .and(warp::ws())
         .and(filters::with(db_pool.clone()))
         .and(filters::with_player_auth(db_pool.clone()))
-        .and(filters::with(clients.clone()))
+        .and(filters::with(matchmaker.clone()))
         .and_then(handlers::play_game);
 
     let routes = health_route

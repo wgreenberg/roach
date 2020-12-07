@@ -4,22 +4,21 @@ use warp::reject;
 use futures::StreamExt;
 use futures::FutureExt;
 use serde::Serialize;
-use crate::db::{DBPool, insert_match, find_notstarted_match_for_player};
+use crate::db::{DBPool, insert_match};
 use crate::player::{Player, hash_string};
-use crate::matchmaker::Matchmaker;
+use crate::matchmaker::{Matchmaker, PollStatus, ClientStatus};
 use crate::hive_match::{HiveMatch, HiveSession, MatchOutcome};
 use crate::model::{MatchRow, PlayerRow, PlayerRowInsertable};
 use crate::client::WebsocketClient;
 use serde::Deserialize;
-use crate::schema::{players, matches, match_outcomes};
+use crate::schema::{players, matches};
 use tokio_diesel::*;
 use diesel::prelude::*;
+use crate::PendingGames;
 use crate::err_handler::{db_query_err, matchmaking_err};
 use tokio::sync::{RwLock, mpsc::Sender};
 use crate::Clients;
 use std::sync::{Arc};
-
-pub type PlayerJoined = (HiveMatch, warp::filters::ws::WebSocket, Player);
 
 #[derive(Deserialize)]
 pub struct CreatePlayerBody {
@@ -34,7 +33,7 @@ pub struct NewPlayerResponse {
 
 #[derive(Serialize)]
 pub struct MatchmakingResponse {
-    match_info: Option<HiveMatch>,
+    ready: bool,
 }
 
 pub async fn list_players(db: DBPool) -> Result<impl Reply, Rejection> {
@@ -76,32 +75,19 @@ pub async fn delete_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection>
     Ok(StatusCode::OK)
 }
 
-pub async fn enter_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker>>) -> Result<impl Reply, Rejection> {
+pub async fn enter_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
     matchmaker.write().await
-        .add_to_pool(player.into())
+        .add_to_pool(&player.into())
         .map_err(matchmaking_err)?;
     Ok(StatusCode::OK)
 }
 
-pub async fn check_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker>>) -> Result<impl Reply, Rejection> {
-    let existing_match = find_notstarted_match_for_player(&db, &player).await
-        .map_err(db_query_err)?;
-    if existing_match.is_some() {
-        let response = MatchmakingResponse { match_info: existing_match };
-        return Ok(warp::reply::with_status(json(&response), StatusCode::OK));
-    }
-    let matchmaking_result = matchmaker.write().await.find_match(player.clone())
-        .map_err(matchmaking_err)?;
-    let response = match matchmaking_result {
-        Some(hive_match) => {
-            insert_match(&db, &hive_match).await.map_err(db_query_err)?;
-            let match_info = find_notstarted_match_for_player(&db, &player).await
-                .map_err(db_query_err)?;
-            MatchmakingResponse { match_info }
-        },
-        None => MatchmakingResponse { match_info: None },
+pub async fn check_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
+    let ready = match matchmaker.write().await.poll(&player).map_err(matchmaking_err)? {
+        PollStatus::Ready => true,
+        PollStatus::NotReady => false,
     };
-    Ok(warp::reply::with_status(json(&response), StatusCode::OK))
+    Ok(json(&MatchmakingResponse { ready }))
 }
 
 pub async fn get_game(id: i32, db: DBPool) -> Result<impl Reply, Rejection> {
@@ -114,40 +100,42 @@ pub async fn get_game(id: i32, db: DBPool) -> Result<impl Reply, Rejection> {
     Ok(json(&game))
 }
 
-pub async fn play_game(id: i32, ws: warp::ws::Ws, db: DBPool, player: Player, clients: Clients) -> Result<impl Reply, Rejection> {
-    let match_row = matches::table
-        .filter(matches::id.eq(id))
-        .get_result_async::<MatchRow>(&db)
-        .await
-        .map_err(db_query_err)?;
-    let mut game = match_row.into_match(&db).await.map_err(db_query_err)?;
+pub async fn play_game(ws: warp::ws::Ws, db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
+    if !matchmaker.read().await.has_pending_match(&player) {
+
+    }
     Ok(ws.on_upgrade(|socket| async move {
-        let match_id = game.id.unwrap();
-
         let client = WebsocketClient::new(socket);
-        let maybe_session = {
-            let mut c = clients.write().await;
-            match c.remove(&match_id) {
-                Some(other_client) => Some(game.create_session(client, other_client)),
-                None => {
-                    c.insert(match_id, client);
-                    None
+        let matchmaking_result = matchmaker.write().await
+            .submit_client(&player, client)
+            // because we already checked for a pending match, this shouldn't happen (unless client
+            // is bombarding us w/ play requests
+            .expect("failed to submit client!");
+        match matchmaking_result {
+            ClientStatus::Pending => {},
+            ClientStatus::Ready(mut hive_match, mut session) => {
+                let match_info = format!("{}: black {}, white {}",
+                    hive_match.game_type,
+                    hive_match.black.id(),
+                    hive_match.white.id());
+                println!("match started ({})", &match_info);
+                match session.play().await {
+                    Ok(outcome) => {
+                        println!("match finished ({}) {}, {}, {}",
+                            &match_info,
+                            outcome.status,
+                            outcome.comment,
+                            outcome.game_string);
+                        hive_match.outcome = Some(outcome);
+                        hive_match.insertable()
+                            .insert_into(matches::table)
+                            .execute_async(&db)
+                            .await
+                            .expect("couldn't insert match outcome");
+                    },
+                    Err(err) => eprintln!("hive session failed due to error: {:?}", err),
                 }
-            }
-        };
-
-        if let Some(mut session) = maybe_session {
-            match session.play().await {
-                Ok(outcome) => {
-                    println!("game {} outcome: {}, {}, {}", match_id, outcome.status, outcome.comment, outcome.game_string);
-                    outcome.insertable(&game)
-                        .insert_into(match_outcomes::table)
-                        .execute_async(&db)
-                        .await
-                        .expect("couldn't insert match outcome");
-                },
-                Err(err) => eprintln!("hive session failed due to error: {:?}", err),
-            }
+            },
         }
     }))
 }

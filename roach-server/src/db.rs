@@ -24,18 +24,3 @@ pub async fn insert_match(db: &DBPool, hive_match: &HiveMatch) -> Result<(), Asy
         .await?;
     Ok(())
 }
-
-pub async fn find_notstarted_match_for_player(db: &DBPool, player: &Player) -> Result<Option<HiveMatch>, AsyncError> {
-    let result = matches::table
-        .filter(matches::white_player_id.eq(player.id.unwrap())
-            .or(matches::black_player_id.eq(player.id.unwrap())))
-        .left_outer_join(match_outcomes::table)
-        .filter(match_outcomes::id.is_null())
-        .get_result_async::<(MatchRow, Option<MatchOutcomeRow>)>(&db)
-        .await
-        .optional()?;
-    match result {
-        Some((match_row, _)) => Ok(Some(match_row.into_match(db).await?)),
-        None => Ok(None),
-    }
-}
