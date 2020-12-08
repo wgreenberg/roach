@@ -1,12 +1,10 @@
 use serde::{Serialize, Serializer};
 use crate::player::Player;
 use crate::client::{Client, ClientError};
-use crate::schema::{matches};
 use crate::model::MatchRowInsertable;
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
-use hive::engine;
 use std::convert::From;
 
 fn serialize_game_type<S>(game_type: &GameType, s: S) -> Result<S::Ok, S::Error> where S: Serializer {

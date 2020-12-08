@@ -2,8 +2,6 @@ use serde::Serialize;
 use sha2::{Sha256, Digest};
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
-use crate::schema::players;
-use crate::model::PlayerRowInsertable;
 
 const INITIAL_ELO: i32 = 1500;
 

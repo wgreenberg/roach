@@ -1,16 +1,11 @@
 #![allow(dead_code)]
 use tokio;
 use warp::{http::StatusCode, Filter};
-use std::collections::HashMap;
 use hive::game_state::GameType;
 use tokio::sync::{RwLock};
 use std::sync::{Arc};
 use crate::matchmaker::Matchmaker;
-use crate::player::Player;
-use crate::db::{DBPool};
-use crate::client::WebsocketClient;
 use crate::err_handler::handle_rejection;
-use crate::hive_match::HiveMatch;
 #[macro_use] extern crate diesel;
 use dotenv::dotenv;
 use std::env;
@@ -25,9 +20,6 @@ mod handlers;
 mod err_handler;
 mod schema;
 mod model;
-
-pub type Clients = Arc<RwLock<HashMap<i32, WebsocketClient>>>;
-pub type PendingGames = Arc<RwLock<Vec<(HiveMatch, Option<WebsocketClient>)>>>;
 
 #[tokio::main]
 async fn main() {
@@ -63,13 +55,11 @@ async fn main() {
     let matchmaking = warp::path("matchmaking");
     let matchmaking_route = matchmaking
         .and(warp::post())
-        .and(filters::with(db_pool.clone()))
         .and(filters::with_player_auth(db_pool.clone()))
         .and(filters::with(matchmaker.clone()))
         .and_then(handlers::enter_matchmaking)
         .or(matchmaking
             .and(warp::get())
-            .and(filters::with(db_pool.clone()))
             .and(filters::with_player_auth(db_pool.clone()))
             .and(filters::with(matchmaker.clone()))
             .and_then(handlers::check_matchmaking));
@@ -95,5 +85,5 @@ async fn main() {
         .recover(handle_rejection)
         .with(warp::cors().allow_any_origin());
 
-    let server_handle = warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
 }

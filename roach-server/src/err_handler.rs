@@ -1,4 +1,4 @@
-use warp::{http::StatusCode, reply::json, Reply, Rejection, reject};
+use warp::{http::StatusCode, Reply, Rejection, reject};
 use serde::Serialize;
 use crate::matchmaker::MatchmakingError;
 use std::convert::Infallible;
@@ -47,7 +47,7 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
     } else if let Some(e) = err.find::<ServerError>() {
         eprintln!("ServerError: {:?}", e);
         match e {
-            ServerError::DbQueryError(err) => {
+            ServerError::DbQueryError(_) => {
                 code = StatusCode::BAD_REQUEST;
                 message = "Could not execute request";
             },

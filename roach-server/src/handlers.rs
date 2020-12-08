@@ -1,23 +1,16 @@
 use warp::{http::StatusCode, reply::json, Reply, Rejection};
-use warp::ws::Message;
-use warp::reject;
-use futures::StreamExt;
-use futures::FutureExt;
 use serde::Serialize;
-use crate::db::{DBPool, insert_match};
-use crate::player::{Player, hash_string};
+use crate::db::DBPool;
+use crate::player::Player;
 use crate::matchmaker::{Matchmaker, PollStatus, ClientStatus};
-use crate::hive_match::{HiveMatch, HiveSession, MatchOutcome};
 use crate::model::{MatchRow, PlayerRow, PlayerRowInsertable};
 use crate::client::WebsocketClient;
 use serde::Deserialize;
 use crate::schema::{players, matches};
 use tokio_diesel::*;
 use diesel::prelude::*;
-use crate::PendingGames;
 use crate::err_handler::{db_query_err, matchmaking_err};
-use tokio::sync::{RwLock, mpsc::Sender};
-use crate::Clients;
+use tokio::sync::RwLock;
 use std::sync::{Arc};
 
 #[derive(Deserialize)]
@@ -75,14 +68,14 @@ pub async fn delete_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection>
     Ok(StatusCode::OK)
 }
 
-pub async fn enter_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
+pub async fn enter_matchmaking(player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
     matchmaker.write().await
         .add_to_pool(&player.into())
         .map_err(matchmaking_err)?;
     Ok(StatusCode::OK)
 }
 
-pub async fn check_matchmaking(db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
+pub async fn check_matchmaking(player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
     let ready = match matchmaker.write().await.poll(&player).map_err(matchmaking_err)? {
         PollStatus::Ready => true,
         PollStatus::NotReady => false,

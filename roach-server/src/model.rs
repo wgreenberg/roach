@@ -4,9 +4,7 @@ use crate::player::Player;
 use crate::schema::*;
 use tokio_diesel::*;
 use diesel::prelude::*;
-use diesel::r2d2::{Pool, ConnectionManager};
-use diesel::result::Error;
-use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
+use hive::game_state::{GameStatus, Color};
 use hive::parser;
 use std::convert::From;
 

@@ -1,6 +1,5 @@
 use std::convert::Infallible;
 use warp::{Filter, Rejection};
-use diesel::r2d2;
 use crate::db::DBPool;
 use crate::player::{Player, hash_string};
 use crate::model::PlayerRow;
