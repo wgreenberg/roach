@@ -26,18 +26,30 @@ mod model;
 pub type AHandlebars<'a> = Arc<Handlebars<'a>>;
 pub type AMatchmaker = Arc<RwLock<Matchmaker<WebsocketClient>>>;
 
+fn initialize_handlebars<'a>(expected_templates: Vec<&str>) -> Handlebars<'a> {
+    let mut hb = Handlebars::new();
+    hb.register_templates_directory(".hbs", "./templates")
+        .expect("failed to open handlebars templates");
+    hb.set_strict_mode(true);
+    for name in expected_templates {
+        if hb.get_template(name).is_none() {
+            panic!("Couldn't find template \"{}.hbs\" in handlebars registry", name);
+        }
+    }
+    hb
+}
+
 #[tokio::main]
 async fn main() {
     let matchmaker = Arc::new(RwLock::new(Matchmaker::new(GameType::Base)));
     dotenv().ok();
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db_pool = db::create_db_pool(&db_url);
-    let mut hb = Handlebars::new();
-    hb.register_templates_directory(".hbs", "./templates")
-        .expect("failed to open handlebars templates");
-    dbg!(hb.get_templates());
-    hb.set_strict_mode(true);
-    let hb = Arc::new(hb);
+    let hb = Arc::new(initialize_handlebars(vec![
+        "player", "players",
+        "game", "games",
+        "index",
+    ]));
 
     let health_route = warp::path("health")
         .and(filters::with(db_pool.clone()))

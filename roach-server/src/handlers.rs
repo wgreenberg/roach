@@ -48,7 +48,10 @@ pub async fn get_players(db: DBPool, hb: AHandlebars<'_>) -> Result<impl Reply> 
         .drain(..)
         .map(|row| row.into())
         .collect();
-    let html = hb.render("players", &json!(players)).map_err(template_err)?;
+    let html = hb.render("players", &json!({
+        "title": "Players",
+        "players": players
+    })).map_err(template_err)?;
     Ok(warp::reply::html(html))
 }
 
@@ -59,12 +62,17 @@ pub async fn get_player(db: DBPool, id: i32, hb: AHandlebars<'_>) -> Result<impl
         .await
         .map_err(db_query_err)?
         .into();
-    let html = hb.render("player", &json!(player)).map_err(template_err)?;
+    let html = hb.render("player", &json!({
+        "title": format!("Player {}: {}", id, player.name),
+        "player": player,
+    })).map_err(template_err)?;
     Ok(warp::reply::html(html))
 }
 
 pub async fn main_page(hb: AHandlebars<'_>) -> Result<impl Reply> {
-    Ok(warp::reply::html(hb.render("index", &json!(null)).map_err(template_err)?))
+    Ok(warp::reply::html(hb.render("index", &json!({
+        "title": "Ranked Online Arena for Computer Hive",
+    })).map_err(template_err)?))
 }
 
 pub async fn create_player(db: DBPool, body: CreatePlayerBody) -> Result<impl Reply> {
@@ -110,7 +118,10 @@ pub async fn get_game(id: i32, db: DBPool, hb: AHandlebars<'_>) -> Result<impl R
         .await
         .map_err(db_query_err)?;
     let game = match_row.into_match(&db).await.map_err(db_query_err)?;
-    let html = hb.render("game", &json!(game)).map_err(template_err)?;
+    let html = hb.render("game", &json!({
+        "title": format!("Game {}: {} vs {}", id, game.black.name, game.white.name),
+        "game": game,
+    })).map_err(template_err)?;
     Ok(warp::reply::html(html))
 }
 
@@ -123,7 +134,10 @@ pub async fn get_games(db: DBPool, hb: AHandlebars<'_>) -> Result<impl Reply> {
     for row in match_rows {
         games.push(row.into_match(&db).await.map_err(db_query_err)?);
     }
-    let html = hb.render("games", &json!(games)).map_err(template_err)?;
+    let html = hb.render("games", &json!({
+        "title": "Games",
+        "games": games,
+    })).map_err(template_err)?;
     Ok(warp::reply::html(html))
 }
 
