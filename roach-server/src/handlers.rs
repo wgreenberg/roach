@@ -19,17 +19,6 @@ pub struct CreatePlayerBody {
     name: String,
 }
 
-#[derive(Serialize)]
-pub struct NewPlayerResponse {
-    player: Player,
-    token: String,
-}
-
-#[derive(Serialize)]
-pub struct MatchmakingResponse {
-    ready: bool,
-}
-
 type Result<T> = std::result::Result<T, Rejection>;
 
 pub async fn health_handler(db: DBPool) -> Result<impl Reply> {
@@ -89,11 +78,15 @@ pub async fn main_page(hb: AHandlebars<'_>) -> Result<impl Reply> {
 pub async fn create_player(db: DBPool, body: CreatePlayerBody) -> Result<impl Reply> {
     let (new_player, token) = Player::new(body.name);
     let row: PlayerRowInsertable = (&new_player).into();
-    let db_player = row.insert_into(players::table)
+    let db_player: Player = row.insert_into(players::table)
         .get_result_async::<PlayerRow>(&db)
         .await
-        .map_err(db_query_err)?;
-    Ok(json(&NewPlayerResponse { player: db_player.into(), token }))
+        .map_err(db_query_err)?
+        .into();
+    Ok(json(&json!({
+        "player": db_player,
+        "token": token,
+    })))
 }
 
 pub async fn delete_player(db: DBPool, id: i32, player: Player) -> Result<impl Reply> {
@@ -119,7 +112,7 @@ pub async fn check_matchmaking(player: Player, matchmaker: AMatchmaker) -> Resul
         PollStatus::Ready => true,
         PollStatus::NotReady => false,
     };
-    Ok(json(&MatchmakingResponse { ready }))
+    Ok(json(&json!({ "ready": ready })))
 }
 
 pub async fn get_game(id: i32, db: DBPool, hb: AHandlebars<'_>) -> Result<impl Reply> {
@@ -164,7 +157,7 @@ pub async fn play_game(ws: Ws, db: DBPool, player: Player, matchmaker: AMatchmak
             // is bombarding us w/ play requests
             .expect("failed to submit client!");
         match matchmaking_result {
-            ClientStatus::Pending => {},
+            ClientStatus::Pending => {}, // this player's the first to show up, so we wait
             ClientStatus::Ready(mut hive_match, mut session) => {
                 let match_info = format!("{}: black {}, white {}",
                     hive_match.game_type,

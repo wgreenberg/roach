@@ -138,7 +138,7 @@ fn white<T>(err: T) -> MatchErrorWithBlame where T: Into<MatchError> {
 }
 
 fn black<T>(err: T) -> MatchErrorWithBlame where T: Into<MatchError> {
-    MatchErrorWithBlame::White(err.into())
+    MatchErrorWithBlame::Black(err.into())
 }
 
 impl<T> HiveSession<T> where T: Client {

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use tokio;
 use warp::Filter;
 use hive::game_state::GameType;
