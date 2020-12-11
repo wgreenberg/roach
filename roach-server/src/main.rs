@@ -29,7 +29,8 @@ async fn main() {
     let db_pool = db::create_db_pool(&db_url);
 
     let health_route = warp::path("health")
-        .map(|| StatusCode::OK);
+        .and(filters::with(db_pool.clone()))
+        .and_then(handlers::health_handler);
 
     let players_route = warp::path("players")
         .and(filters::with(db_pool.clone()))
@@ -69,6 +70,11 @@ async fn main() {
         .and(filters::with(db_pool.clone()))
         .and_then(handlers::get_game);
 
+    let games_route = warp::path!("games")
+        .and(warp::get())
+        .and(filters::with(db_pool.clone()))
+        .and_then(handlers::get_games);
+
     let play_route = warp::path!("play")
         .and(warp::ws())
         .and(filters::with(db_pool.clone()))
@@ -76,14 +82,18 @@ async fn main() {
         .and(filters::with(matchmaker.clone()))
         .and_then(handlers::play_game);
 
-    let routes = health_route
+    let api_routes = health_route
         .or(players_route)
         .or(player_route)
         .or(matchmaking_route)
+        .or(games_route)
         .or(game_route)
         .or(play_route)
         .recover(handle_rejection)
         .with(warp::cors().allow_any_origin());
+
+    let routes = api_routes
+        .or(warp::path("static").and(warp::fs::dir("./static/")));
 
     warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
 }

@@ -29,6 +29,14 @@ pub struct MatchmakingResponse {
     ready: bool,
 }
 
+pub async fn health_handler(db: DBPool) -> Result<impl Reply, Rejection> {
+    diesel::sql_query("SELECT 1")
+        .execute_async(&db)
+        .await
+        .map_err(db_query_err)?;
+    Ok(StatusCode::OK)
+}
+
 pub async fn list_players(db: DBPool) -> Result<impl Reply, Rejection> {
     let players: Vec<Player> = players::table
         .load_async::<PlayerRow>(&db)
@@ -91,6 +99,18 @@ pub async fn get_game(id: i32, db: DBPool) -> Result<impl Reply, Rejection> {
         .map_err(db_query_err)?;
     let game = match_row.into_match(&db).await.map_err(db_query_err)?;
     Ok(json(&game))
+}
+
+pub async fn get_games(db: DBPool) -> Result<impl Reply, Rejection> {
+    let match_rows = matches::table
+        .get_results_async::<MatchRow>(&db)
+        .await
+        .map_err(db_query_err)?;
+    let mut games = Vec::new();
+    for row in match_rows {
+        games.push(row.into_match(&db).await.map_err(db_query_err)?);
+    }
+    Ok(json(&games))
 }
 
 pub async fn play_game(ws: warp::ws::Ws, db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
