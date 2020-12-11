@@ -1,3 +1,21 @@
 {{>header_partial}}
+<script>
+async function create_player() {
+    const name = document.getElementById('name').value;
+    console.log('creating player with name', name);
+    let reply = await fetch('/player', {
+        method: 'POST',
+        body: JSON.stringify({ 'name': name }),
+        headers: { 'content-type': 'application/json' },
+    });
+    const result_element = document.createElement('pre');
+    result_element.innerText = JSON.stringify(await reply.json());
+    document.getElementById('create_player').append(result_element);
+}
+</script>
 roach roach roach
+<div id="create_player">
+    <input type="text" id="name" name="name" required>
+    <input type="button" value="create player" onclick="create_player()">
+</div>
 {{>footer_partial}}
