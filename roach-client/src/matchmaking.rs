@@ -1,6 +1,5 @@
 use reqwest::{Client, Url, Response};
-use futures::{StreamExt, SinkExt, FutureExt};
-use http::{Request, request::Builder};
+use http::request::Builder;
 use tungstenite::{connect, Message};
 use crate::engine::UHPCompliant;
 use std::{thread, time};
@@ -36,7 +35,8 @@ impl MatchmakingClient {
     }
 
     pub async fn wait_for_match(&self) -> Result<(), reqwest::Error> {
-        while let res = self.poll_matchmaking().await? {
+        loop {
+            let res = self.poll_matchmaking().await?;
             println!("waiting for a match...");
             let status = res.status();
             let obj: serde_json::Value = res.json().await?;
@@ -51,10 +51,9 @@ impl MatchmakingClient {
                 panic!("non-successful status code {} when matchmaking. error: {}", status, obj);
             }
         }
-        unreachable!();
     }
 
-    pub async fn play_match(&self, mut engine: Box<UHPCompliant>) {
+    pub async fn play_match(&self, mut engine: Box<dyn UHPCompliant>) {
         let mut uri = Url::join(&self.roach_url, "play").unwrap();
         uri.set_scheme("ws").expect("couldn't set scheme");
         println!("beginning game {}", &uri);
@@ -68,7 +67,7 @@ impl MatchmakingClient {
             println!("> {}", &command);
             let output = engine.handle_command(&command).await;
             println!("< {}", &output);
-            ws_stream.write_message(Message::text(output));
+            ws_stream.write_message(Message::text(output)).expect("couldn't write message to ws");
         }
     }
 }

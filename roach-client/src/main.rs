@@ -6,7 +6,7 @@ mod process;
 mod engine;
 mod matchmaking;
 
-use crate::engine::{EngineType, UHPCompliant, get_engine};
+use crate::engine::{EngineType, get_engine};
 use crate::matchmaking::MatchmakingClient;
 
 #[tokio::main]
