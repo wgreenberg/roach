@@ -1,8 +1,13 @@
 {{>header_partial}}
 {{player.name}} {{player.elo}}
+<h3>Games</h3>
+{{#if (eq n_games 0)}}
+This player has played no games!
+{{else}}
 <ul>
 {{#each games}}
     <li><a href="/game/{{this.id}}">{{this.black.name}} vs {{this.white.name}} ({{this.game_type}}): {{this.outcome.status}}</a></li>
 {{/each}}
 </ul>
+{{/if}}
 {{>footer_partial}}

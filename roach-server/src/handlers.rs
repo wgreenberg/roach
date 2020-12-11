@@ -74,6 +74,7 @@ pub async fn get_player(db: DBPool, id: i32, hb: AHandlebars<'_>) -> Result<impl
     let html = hb.render("player", &json!({
         "title": format!("Player {}: {}", id, player.name),
         "player": player,
+        "n_games": games.len(),
         "games": games,
     })).map_err(template_err)?;
     Ok(warp::reply::html(html))
