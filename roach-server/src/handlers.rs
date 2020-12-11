@@ -62,9 +62,19 @@ pub async fn get_player(db: DBPool, id: i32, hb: AHandlebars<'_>) -> Result<impl
         .await
         .map_err(db_query_err)?
         .into();
+    let match_rows = matches::table
+        .filter(matches::white_player_id.eq(id).or(matches::black_player_id.eq(id)))
+        .get_results_async::<MatchRow>(&db)
+        .await
+        .map_err(db_query_err)?;
+    let mut games = Vec::new();
+    for row in match_rows {
+        games.push(row.into_match(&db).await.map_err(db_query_err)?);
+    }
     let html = hb.render("player", &json!({
         "title": format!("Player {}: {}", id, player.name),
         "player": player,
+        "games": games,
     })).map_err(template_err)?;
     Ok(warp::reply::html(html))
 }

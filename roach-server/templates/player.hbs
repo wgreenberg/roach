@@ -1,3 +1,8 @@
 {{>header_partial}}
 {{player.name}} {{player.elo}}
+<ul>
+{{#each games}}
+    <li>{{this.id}} {{this.black.name}} vs {{this.white.name}} ({{this.game_type}}): {{this.outcome.status}}</li>
+{{/each}}
+</ul>
 {{>footer_partial}}
