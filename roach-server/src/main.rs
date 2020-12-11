@@ -10,6 +10,7 @@ use crate::err_handler::handle_rejection;
 use crate::client::WebsocketClient;
 #[macro_use] extern crate diesel;
 use dotenv::dotenv;
+use pretty_env_logger;
 use std::env;
 
 mod hive_match;
@@ -43,6 +44,7 @@ fn initialize_handlebars<'a>(expected_templates: Vec<&str>) -> Handlebars<'a> {
 async fn main() {
     let matchmaker = Arc::new(RwLock::new(Matchmaker::new(GameType::Base)));
     dotenv().ok();
+    pretty_env_logger::init();
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db_pool = db::create_db_pool(&db_url);
     let hb = Arc::new(initialize_handlebars(vec![
@@ -116,6 +118,8 @@ async fn main() {
 
     let static_route = warp::fs::dir("./static/");
 
+    let log = warp::log("roach");
+
     let routes = health_route
         .or(players_route)
         .or(player_route)
@@ -126,6 +130,7 @@ async fn main() {
         .or(index_route)
         .or(static_route)
         .recover(handle_rejection)
+        .with(log)
         .with(warp::cors().allow_any_origin());
 
     warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
