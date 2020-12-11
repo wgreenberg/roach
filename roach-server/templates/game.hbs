@@ -1,3 +1,3 @@
 {{>header_partial}}
-{{game.id}} {{game.black.name}} vs {{game.white.name}} ({{game.game_type}}): {{game.outcome.status}}
+<a href="/player/{{game.black.id}}">{{game.black.name}}</a> vs <a href="/player/{{game.white.id}}">{{game.white.name}}</a> ({{game.game_type}}): {{game.outcome.status}}
 {{>footer_partial}}

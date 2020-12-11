@@ -1,7 +1,7 @@
 {{>header_partial}}
 <ul>
 {{#each games}}
-    <li>{{this.id}} {{this.black.name}} vs {{this.white.name}} ({{this.game_type}}): {{this.outcome.status}}</li>
+    <li><a href="/game/{{this.id}}">{{this.id}} {{this.black.name}} vs {{this.white.name}} ({{this.game_type}}): {{this.outcome.status}}</a></li>
 {{/each}}
 </ul>
 {{>footer_partial}}
