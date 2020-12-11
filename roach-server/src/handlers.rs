@@ -1,17 +1,18 @@
 use warp::{http::StatusCode, reply::json, Reply, Rejection};
 use serde::Serialize;
+use serde_json::json;
+use crate::{AHandlebars, AMatchmaker};
 use crate::db::DBPool;
 use crate::player::Player;
-use crate::matchmaker::{Matchmaker, PollStatus, ClientStatus};
+use crate::matchmaker::{PollStatus, ClientStatus};
 use crate::model::{MatchRow, PlayerRow, PlayerRowInsertable};
 use crate::client::WebsocketClient;
 use serde::Deserialize;
 use crate::schema::{players, matches};
+use warp::ws::Ws;
 use tokio_diesel::*;
 use diesel::prelude::*;
-use crate::err_handler::{db_query_err, matchmaking_err};
-use tokio::sync::RwLock;
-use std::sync::{Arc};
+use crate::err_handler::{db_query_err, matchmaking_err, template_err};
 
 #[derive(Deserialize)]
 pub struct CreatePlayerBody {
@@ -29,7 +30,9 @@ pub struct MatchmakingResponse {
     ready: bool,
 }
 
-pub async fn health_handler(db: DBPool) -> Result<impl Reply, Rejection> {
+type Result<T> = std::result::Result<T, Rejection>;
+
+pub async fn health_handler(db: DBPool) -> Result<impl Reply> {
     diesel::sql_query("SELECT 1")
         .execute_async(&db)
         .await
@@ -37,7 +40,7 @@ pub async fn health_handler(db: DBPool) -> Result<impl Reply, Rejection> {
     Ok(StatusCode::OK)
 }
 
-pub async fn list_players(db: DBPool) -> Result<impl Reply, Rejection> {
+pub async fn get_players(db: DBPool, hb: AHandlebars<'_>) -> Result<impl Reply> {
     let players: Vec<Player> = players::table
         .load_async::<PlayerRow>(&db)
         .await
@@ -45,20 +48,26 @@ pub async fn list_players(db: DBPool) -> Result<impl Reply, Rejection> {
         .drain(..)
         .map(|row| row.into())
         .collect();
-    Ok(json(&players))
+    let html = hb.render("players", &json!(players)).map_err(template_err)?;
+    Ok(warp::reply::html(html))
 }
 
-pub async fn get_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection> {
+pub async fn get_player(db: DBPool, id: i32, hb: AHandlebars<'_>) -> Result<impl Reply> {
     let player: Player = players::table
         .filter(players::id.eq(id))
         .get_result_async::<PlayerRow>(&db)
         .await
         .map_err(db_query_err)?
         .into();
-    Ok(json(&player))
+    let html = hb.render("player", &json!(player)).map_err(template_err)?;
+    Ok(warp::reply::html(html))
 }
 
-pub async fn create_player(db: DBPool, body: CreatePlayerBody) -> Result<impl Reply, Rejection> {
+pub async fn main_page(hb: AHandlebars<'_>) -> Result<impl Reply> {
+    Ok(warp::reply::html(hb.render("index", &json!(null)).map_err(template_err)?))
+}
+
+pub async fn create_player(db: DBPool, body: CreatePlayerBody) -> Result<impl Reply> {
     let (new_player, token) = Player::new(body.name);
     let row: PlayerRowInsertable = (&new_player).into();
     let db_player = row.insert_into(players::table)
@@ -68,7 +77,10 @@ pub async fn create_player(db: DBPool, body: CreatePlayerBody) -> Result<impl Re
     Ok(json(&NewPlayerResponse { player: db_player.into(), token }))
 }
 
-pub async fn delete_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection> {
+pub async fn delete_player(db: DBPool, id: i32, player: Player) -> Result<impl Reply> {
+    if player.id() != id {
+        return Ok(StatusCode::FORBIDDEN);
+    }
     diesel::delete(players::table.filter(players::id.eq(id)))
         .execute_async(&db)
         .await
@@ -76,14 +88,14 @@ pub async fn delete_player(db: DBPool, id: i32) -> Result<impl Reply, Rejection>
     Ok(StatusCode::OK)
 }
 
-pub async fn enter_matchmaking(player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
+pub async fn enter_matchmaking(player: Player, matchmaker: AMatchmaker) -> Result<impl Reply> {
     matchmaker.write().await
         .add_to_pool(&player.into())
         .map_err(matchmaking_err)?;
     Ok(StatusCode::OK)
 }
 
-pub async fn check_matchmaking(player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
+pub async fn check_matchmaking(player: Player, matchmaker: AMatchmaker) -> Result<impl Reply> {
     let ready = match matchmaker.write().await.poll(&player).map_err(matchmaking_err)? {
         PollStatus::Ready => true,
         PollStatus::NotReady => false,
@@ -91,17 +103,18 @@ pub async fn check_matchmaking(player: Player, matchmaker: Arc<RwLock<Matchmaker
     Ok(json(&MatchmakingResponse { ready }))
 }
 
-pub async fn get_game(id: i32, db: DBPool) -> Result<impl Reply, Rejection> {
+pub async fn get_game(id: i32, db: DBPool, hb: AHandlebars<'_>) -> Result<impl Reply> {
     let match_row = matches::table
         .filter(matches::id.eq(id))
         .get_result_async::<MatchRow>(&db)
         .await
         .map_err(db_query_err)?;
     let game = match_row.into_match(&db).await.map_err(db_query_err)?;
-    Ok(json(&game))
+    let html = hb.render("game", &json!(game)).map_err(template_err)?;
+    Ok(warp::reply::html(html))
 }
 
-pub async fn get_games(db: DBPool) -> Result<impl Reply, Rejection> {
+pub async fn get_games(db: DBPool, hb: AHandlebars<'_>) -> Result<impl Reply> {
     let match_rows = matches::table
         .get_results_async::<MatchRow>(&db)
         .await
@@ -110,14 +123,15 @@ pub async fn get_games(db: DBPool) -> Result<impl Reply, Rejection> {
     for row in match_rows {
         games.push(row.into_match(&db).await.map_err(db_query_err)?);
     }
-    Ok(json(&games))
+    let html = hb.render("games", &json!(games)).map_err(template_err)?;
+    Ok(warp::reply::html(html))
 }
 
-pub async fn play_game(ws: warp::ws::Ws, db: DBPool, player: Player, matchmaker: Arc<RwLock<Matchmaker<WebsocketClient>>>) -> Result<impl Reply, Rejection> {
+pub async fn play_game(ws: Ws, db: DBPool, player: Player, matchmaker: AMatchmaker) -> Result<Box<dyn Reply>> {
     if !matchmaker.read().await.has_pending_match(&player) {
-
+        return Ok(Box::new(StatusCode::FORBIDDEN));
     }
-    Ok(ws.on_upgrade(|socket| async move {
+    Ok(Box::new(ws.on_upgrade(|socket| async move {
         let client = WebsocketClient::new(socket);
         let matchmaking_result = matchmaker.write().await
             .submit_client(&player, client)
@@ -150,5 +164,5 @@ pub async fn play_game(ws: warp::ws::Ws, db: DBPool, player: Player, matchmaker:
                 }
             },
         }
-    }))
+    })))
 }

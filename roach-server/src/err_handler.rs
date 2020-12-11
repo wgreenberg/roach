@@ -16,6 +16,10 @@ pub fn authentication_err(_: tokio_diesel::AsyncError) -> Rejection {
     reject::custom(ServerError::AuthenticationError)
 }
 
+pub fn template_err(err: handlebars::RenderError) -> Rejection {
+    reject::custom(ServerError::TemplateError(err))
+}
+
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("error executing DB query {0}")]
@@ -24,6 +28,8 @@ pub enum ServerError {
     MatchmakingError(MatchmakingError),
     #[error("authentication error")]
     AuthenticationError,
+    #[error("error rendering template {0}")]
+    TemplateError(#[from] handlebars::RenderError),
 }
 
 impl warp::reject::Reject for ServerError {}
@@ -61,6 +67,10 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
             ServerError::AuthenticationError => {
                 code = StatusCode::FORBIDDEN;
                 message = "Invalid authorization token";
+            },
+            ServerError::TemplateError(_) => {
+                code = StatusCode::INTERNAL_SERVER_ERROR;
+                message = "Failed to render page";
             },
         }
     } else {

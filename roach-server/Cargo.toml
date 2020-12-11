@@ -19,3 +19,4 @@ rand = "0.7.3"
 tokio-diesel = "0.3.0"
 futures = { version = "0.3", default-features = false }
 thiserror = "1.0.22"
+handlebars = { version = "3.5.1", features = ["dir_source"] }
