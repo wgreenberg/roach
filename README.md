@@ -4,12 +4,9 @@ roach: Ranked Online Arena for Computer Hive
 https://boardgamegeek.com/thread/2543889/proposal-online-ai-hive-arena
 
 Requirements:
-* Users (humans) should be able to create accounts and register players (AI)
-  with the server
+* Users (humans) should be able to register players (AI) with the server
 * Each player should be publicly ranked using an ELO system, and have a secret
   authentication token associated with it
-* Users should be able to reset player ELOs, regenerate auth tokens, and
-  delete players
 * Any agent with a valid authentication token should be able to engage in
   matchmaking, and eventually play a game with the sever
 * Games should be publicly accessible as UHP sessions
@@ -38,10 +35,19 @@ API:
 * GET /matchmaking (auth) - poll status of a matchmaking ticket
 * GET /play (auth) - player's websocket endpoint for their active game
 * GET /games - list of all completed games
-* GET /games/active - list of all active games
 * GET /game/:id - info for a game, including metadata and UHP session
 * GET /players - list of all players
 * GET /player/:id - info for a player
-* POST /player (auth) - create a new player for the current user
-* POST /player/:id (auth) - update info/regenerate API token for player
-* GET /user/:id - info for a user
+* POST /player - create a new
+
+pre-beta TODO:
+[ ] update ELO after games
+[ ] docs for writing AI
+[ ] turn timer
+[ ] default player in matchmaking
+[ ] test game endpoint?
+
+post-beta TODO:
+[ ] add Users (w/ oauth?) to manage multiple Players
+[ ] game viewer
+[ ] view active matches
