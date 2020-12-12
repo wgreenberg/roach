@@ -72,13 +72,7 @@ async fn main() {
             .and(warp::post())
             .and(filters::with(db_pool.clone()))
             .and(warp::body::json())
-            .and_then(handlers::create_player))
-        .or(player
-            .and(warp::delete())
-            .and(filters::with(db_pool.clone()))
-            .and(warp::path::param())
-            .and(filters::with_player_auth(db_pool.clone()))
-            .and_then(handlers::delete_player));
+            .and_then(handlers::create_player));
 
     let matchmaking = warp::path!("matchmaking");
     let matchmaking_route = matchmaking
