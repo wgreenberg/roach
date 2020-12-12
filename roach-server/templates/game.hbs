@@ -1,6 +1,4 @@
 {{>header_partial}}
-<a href="/player/{{game.black.id}}">{{game.black.name}}</a> vs <a href="/player/{{game.white.id}}">{{game.white.name}}</a> ({{game.game_type}}): {{game.outcome.status}}
-<p>{{game.outcome.game_string}}</p>
-<p>is fault: {{game.outcome.is_fault}}</p>
-<p>comment: {{game.outcome.comment}}</p>
+<h1>Game Summary</h1>
+{{>game_info_partial game=game}}
 {{>footer_partial}}

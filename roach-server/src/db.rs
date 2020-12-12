@@ -1,5 +1,5 @@
 use diesel::pg::PgConnection;
-use crate::player::Player;
+use crate::player::{Player, PlayerStatistics};
 use crate::model::{MatchRow, PlayerRow, PlayerRowInsertable};
 use crate::hive_match::HiveMatch;
 use diesel::r2d2::{Pool, ConnectionManager};
@@ -40,6 +40,34 @@ pub async fn find_player(db: &DBPool, player_id: i32) -> Result<Player> {
         .get_result_async::<PlayerRow>(db)
         .await?
         .into())
+}
+
+pub async fn find_player_stats(db: &DBPool, player_id: i32) -> Result<PlayerStatistics> {
+    let match_rows = matches::table
+        .filter(matches::white_player_id.eq(player_id).or(matches::black_player_id.eq(player_id)))
+        .get_results_async::<MatchRow>(db)
+        .await?;
+    let mut stats: PlayerStatistics = Default::default();
+    stats.n_games = match_rows.len() as u64;
+    for row in match_rows {
+        if row.is_draw {
+            stats.n_draws += 1;
+        }
+        if row.winner_id == Some(player_id) {
+            if row.is_fault {
+                stats.n_fault_wins += 1;
+            } else {
+                stats.n_wins += 1;
+            }
+        } else {
+            if row.is_fault {
+                stats.n_fault_losses += 1;
+            } else {
+                stats.n_losses += 1;
+            }
+        }
+    }
+    Ok(stats)
 }
 
 pub async fn find_match(db: &DBPool, match_id: i32) -> Result<HiveMatch> {

@@ -15,6 +15,16 @@ pub struct Player {
     pub token_hash: String,
 }
 
+#[derive(Debug, Serialize, Default)]
+pub struct PlayerStatistics {
+    pub n_wins: u64,
+    pub n_losses: u64,
+    pub n_draws: u64,
+    pub n_fault_wins: u64,
+    pub n_fault_losses: u64,
+    pub n_games: u64, // sum of all of the above
+}
+
 pub fn hash_string(string: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(string);

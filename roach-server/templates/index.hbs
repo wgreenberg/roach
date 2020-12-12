@@ -8,14 +8,23 @@ async function create_player() {
         body: JSON.stringify({ 'name': name }),
         headers: { 'content-type': 'application/json' },
     });
-    const result_element = document.createElement('pre');
-    result_element.innerText = JSON.stringify(await reply.json());
+    const result = await reply.json();
+    const result_element = document.createElement('details');
+    const summary_element = document.createElement('summary');
+    summary_element.innerText = "Successfully created player! Click to reveal your API token";
+    const token_element = document.createElement('p');
+    token_element.innerText = result.token;
+    result_element.append(summary_element);
+    result_element.append(token_element);
     document.getElementById('create_player').append(result_element);
 }
 </script>
-roach roach roach
+<h2>roach, the Ranked Online Arena for Computer Hive</h2>
+<h3>Create an AI Player</h3>
 <div id="create_player">
+    <form onsubmit="create_player(); return false;">
     <input type="text" id="name" name="name" required>
-    <input type="button" value="create player" onclick="create_player()">
+    <input type="submit" value="create player">
+    </form>
 </div>
 {{>footer_partial}}

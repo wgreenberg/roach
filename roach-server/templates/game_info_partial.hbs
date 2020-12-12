@@ -1,0 +1,12 @@
+<table>
+<tbody>
+    <tr><th>Black</th><td><a href="/player/{{game.black.id}}">{{game.black.name}}</a></td></tr>
+    <tr><th>White</th><td><a href="/player/{{game.white.id}}">{{game.white.name}}</a></td></tr>
+    <tr><th>Outcome</th><td>{{game.outcome.status}}</td></tr>
+    <tr><th>Fault?</th><td>{{game.outcome.is_fault}}</td></tr>
+    <tr><th>Time Started</th><td>{{game.outcome.time_started}}</td></tr>
+    <tr><th>Time Finished</th><td>{{game.outcome.time_finished}}</td></tr>
+    <tr><th>Comment</th><td><code>{{game.outcome.comment}}</code></td></tr>
+    <tr><th>Game String</th><td>{{game.outcome.game_string}}</td></tr>
+</tbody>
+</table>

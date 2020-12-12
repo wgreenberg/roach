@@ -1,7 +1,3 @@
 {{>header_partial}}
-<ul>
-{{#each players}}
-    <li><a href="/player/{{this.id}}">{{this.id}} {{this.name}} {{this.elo}}</a></li>
-{{/each}}
-</ul>
+{{>players_partial players=players}}
 {{>footer_partial}}

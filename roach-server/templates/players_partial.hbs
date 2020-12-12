@@ -1,0 +1,16 @@
+<table>
+<thead>
+    <tr>
+    <th>Name</th>
+    <th>ELO</th>
+    </tr>
+</thead>
+<tbody>
+{{#each players}}
+    <tr>
+    <td><a href="/player/{{this.id}}">{{this.name}}</a></td>
+    <td>{{this.elo}}</td>
+    </tr>
+{{/each}}
+</tbody>
+</table>

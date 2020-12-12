@@ -32,10 +32,11 @@ pub async fn get_players(db: DBPool, hb: AHandlebars<'_>) -> Result<impl Reply> 
 pub async fn get_player(db: DBPool, id: i32, hb: AHandlebars<'_>) -> Result<impl Reply> {
     let player: Player = find_player(&db, id).await.map_err(db_query_err)?;
     let games = find_player_matches(&db, id).await.map_err(db_query_err)?;
+    let stats = find_player_stats(&db, id).await.map_err(db_query_err)?;
     let html = hb.render("player", &json!({
         "title": format!("Player {}: {}", id, player.name),
         "player": player,
-        "n_games": games.len(),
+        "stats": stats,
         "games": games,
     })).map_err(template_err)?;
     Ok(warp::reply::html(html))
