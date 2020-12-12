@@ -7,6 +7,8 @@ create table matches (
     loser_id integer references players(id),
     is_draw boolean not null,
     is_fault boolean not null,
+    time_started timestamp with time zone not null,
+    time_finished timestamp with time zone not null,
     comment text not null,
     game_string text not null
 )

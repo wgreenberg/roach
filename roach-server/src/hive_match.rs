@@ -6,6 +6,7 @@ use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
 use std::convert::From;
+use chrono::prelude::*;
 
 fn serialize_game_type<S>(game_type: &GameType, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
     s.serialize_str(&format!("{}", game_type))
@@ -32,6 +33,8 @@ pub struct MatchOutcome {
     pub comment: String,
     pub game_string: String,
     pub is_fault: bool,
+    pub time_started: DateTime<Utc>,
+    pub time_finished: DateTime<Utc>,
 }
 
 type MatchResult = Result<MatchOutcome, MatchError>;
@@ -107,6 +110,8 @@ impl HiveMatch {
             loser_id,
             is_draw,
             is_fault: outcome.is_fault, 
+            time_started: outcome.time_started,
+            time_finished: outcome.time_finished,
             game_string: outcome.game_string.clone(),
             comment: outcome.comment.clone(),
         }
@@ -197,7 +202,9 @@ impl<T> HiveSession<T> where T: Client {
     }
 
     pub async fn play(&mut self) -> MatchResult {
+        let time_started: DateTime<Utc> = Utc::now();
         let game_result = self.run_game().await;
+        let time_finished: DateTime<Utc> = Utc::now();
         let game_string = format!("{}", self.game);
         match game_result {
             Ok(status) => Ok(MatchOutcome {
@@ -205,6 +212,8 @@ impl<T> HiveSession<T> where T: Client {
                 game_string,
                 comment: "Game finished normally".to_string(),
                 is_fault: false,
+                time_started,
+                time_finished,
             }),
             Err(err) => {
                 let (status, comment) = match err {
@@ -217,6 +226,8 @@ impl<T> HiveSession<T> where T: Client {
                     game_string,
                     comment,
                     is_fault: true,
+                    time_started,
+                    time_finished,
                 })
             }
         }

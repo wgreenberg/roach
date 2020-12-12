@@ -8,6 +8,8 @@ table! {
         loser_id -> Nullable<Int4>,
         is_draw -> Bool,
         is_fault -> Bool,
+        time_started -> Timestamptz,
+        time_finished -> Timestamptz,
         comment -> Text,
         game_string -> Text,
     }

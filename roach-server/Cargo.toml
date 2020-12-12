@@ -11,7 +11,8 @@ warp = "0.2"
 async-trait = "0.1.42"
 serde = {version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-diesel = { version = "1.4.4", features = ["r2d2", "postgres"] }
+diesel = { version = "1.4.4", features = ["r2d2", "postgres", "chrono"] }
+chrono = { version = "0.4", features = ["serde"] }
 dotenv = "0.15.0"
 r2d2 = "0.8.9"
 sha2 = "0.9.2"
