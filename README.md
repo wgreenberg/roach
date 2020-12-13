@@ -42,7 +42,7 @@ API:
 
 pre-beta TODO:
 [x] update ELO after games
-[ ] docs for writing AI
+[x] docs for writing AI
 [ ] turn timer
 [ ] default player in matchmaking
 [ ] test game endpoint?
