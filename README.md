@@ -41,13 +41,13 @@ API:
 * POST /player - create a new
 
 pre-beta TODO:
-[x] update ELO after games
-[x] docs for writing AI
-[ ] turn timer
-[ ] default player in matchmaking
-[ ] test game endpoint?
+- [x] update ELO after games
+- [x] docs for writing AI
+- [ ] turn timer
+- [ ] default player in matchmaking
+- [ ] test game endpoint?
 
 post-beta TODO:
-[ ] add Users (w/ oauth?) to manage multiple Players
-[ ] game viewer
-[ ] view active matches
+- [ ] add Users (w/ oauth?) to manage multiple Players
+- [ ] game viewer
+- [ ] view active matches
