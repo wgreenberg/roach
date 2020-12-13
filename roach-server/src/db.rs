@@ -103,6 +103,14 @@ pub async fn find_player_matches(db: &DBPool, player_id: i32) -> Result<Vec<Hive
 }
 
 pub async fn insert_match(db: &DBPool, hive_match: HiveMatch) -> Result<()> {
+    diesel::update(players::table.filter(players::id.eq(hive_match.black.id())))
+        .set(players::elo.eq(hive_match.black.elo))
+        .execute_async(db)
+        .await?;
+    diesel::update(players::table.filter(players::id.eq(hive_match.white.id())))
+        .set(players::elo.eq(hive_match.white.elo))
+        .execute_async(db)
+        .await?;
     hive_match.insertable()
         .insert_into(matches::table)
         .execute_async(&db)

@@ -41,7 +41,7 @@ API:
 * POST /player - create a new
 
 pre-beta TODO:
-[ ] update ELO after games
+[x] update ELO after games
 [ ] docs for writing AI
 [ ] turn timer
 [ ] default player in matchmaking

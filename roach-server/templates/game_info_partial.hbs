@@ -1,7 +1,7 @@
 <table>
 <tbody>
-    <tr><th>Black</th><td><a href="/player/{{game.black.id}}">{{game.black.name}}</a></td></tr>
-    <tr><th>White</th><td><a href="/player/{{game.white.id}}">{{game.white.name}}</a></td></tr>
+    <tr><th>Black</th><td><a href="/player/{{game.black.id}}">{{game.black.name}} ({{game.black.elo}})</a></td></tr>
+    <tr><th>White</th><td><a href="/player/{{game.white.id}}">{{game.white.name}} ({{game.white.elo}})</a></td></tr>
     <tr><th>Outcome</th><td>{{game.outcome.status}}</td></tr>
     <tr><th>Fault?</th><td>{{game.outcome.is_fault}}</td></tr>
     <tr><th>Time Started</th><td>{{game.outcome.time_started}}</td></tr>

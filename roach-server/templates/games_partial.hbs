@@ -12,8 +12,8 @@
 {{#each games}}
     <tr>
     <td>{{this.outcome.time_started}}</td>
-    <td><a href="/player/{{this.black.id}}">{{this.black.name}}</a></td>
-    <td><a href="/player/{{this.white.id}}">{{this.white.name}}</a></td>
+    <td><a href="/player/{{this.black.id}}">{{this.black.name}} ({{this.black.elo}})</a></td>
+    <td><a href="/player/{{this.white.id}}">{{this.white.name}} ({{this.white.elo}})</a></td>
     <td>{{this.game_type}}</td>
     <td>{{this.outcome.status}}</td>
     <td><a href="/game/{{this.id}}">View</a></td>

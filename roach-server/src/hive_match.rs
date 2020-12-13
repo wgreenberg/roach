@@ -129,6 +129,23 @@ impl HiveMatch {
             game: GameState::new_with_type(first_player, self.game_type),
         }
     }
+
+    pub fn set_outcome(&mut self, outcome: MatchOutcome) {
+        let k = 30.0;
+        let diff: f64 = (self.black.elo - self.white.elo) as f64;
+        let black_expected = (1.0 + (10.0 as f64).powf(diff / 400.0)).recip();
+        let white_expected = (1.0 + (10.0 as f64).powf(-diff / 400.0)).recip();
+        let black_actual = match &outcome.status {
+            GameStatus::Win(Color::Black) => 1.0,
+            GameStatus::Win(Color::White) => 0.0,
+            GameStatus::Draw => 0.5,
+            other => panic!("invalid outcome {}", other),
+        };
+        let white_actual = 1.0 - black_actual;
+        self.black.elo += (k * (black_actual - black_expected)) as i32;
+        self.white.elo += (k * (white_actual - white_expected)) as i32;
+        self.outcome = Some(outcome);
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -316,5 +333,46 @@ mod tests {
         assert_eq!(session.play_turn().await.is_err(), true);
         assert_eq!(session.b_client.requests, vec!["bestmove"]);
         assert_eq!(session.w_client.requests, vec!["play bS1"]);
+    }
+
+    #[test]
+    fn test_elo_updates() {
+        let (p1, _) = Player::new("p1".into());
+        let (p2, _) = Player::new("p2".into());
+        let mut hive_match = HiveMatch::new(p1.clone(), p2.clone(), GameType::Base);
+        hive_match.set_outcome(MatchOutcome {
+            status: GameStatus::Win(Color::Black),
+            comment: "".into(),
+            game_string: "".into(),
+            is_fault: false,
+            time_started: Utc::now(),
+            time_finished: Utc::now(),
+        });
+        assert_eq!(hive_match.black.elo, 1515);
+        assert_eq!(hive_match.white.elo, 1485);
+
+        let mut hive_match = HiveMatch::new(p1.clone(), p2.clone(), GameType::Base);
+        hive_match.set_outcome(MatchOutcome {
+            status: GameStatus::Win(Color::White),
+            comment: "".into(),
+            game_string: "".into(),
+            is_fault: false,
+            time_started: Utc::now(),
+            time_finished: Utc::now(),
+        });
+        assert_eq!(hive_match.white.elo, 1515);
+        assert_eq!(hive_match.black.elo, 1485);
+
+        let mut hive_match = HiveMatch::new(p1.clone(), p2.clone(), GameType::Base);
+        hive_match.set_outcome(MatchOutcome {
+            status: GameStatus::Draw,
+            comment: "".into(),
+            game_string: "".into(),
+            is_fault: false,
+            time_started: Utc::now(),
+            time_finished: Utc::now(),
+        });
+        assert_eq!(hive_match.white.elo, 1500);
+        assert_eq!(hive_match.black.elo, 1500);
     }
 }

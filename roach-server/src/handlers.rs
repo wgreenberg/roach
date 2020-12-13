@@ -115,7 +115,7 @@ pub async fn play_game(ws: Ws, db: DBPool, player: Player, matchmaker: AMatchmak
                             outcome.status,
                             outcome.comment,
                             outcome.game_string);
-                        hive_match.outcome = Some(outcome);
+                        hive_match.set_outcome(outcome);
                         insert_match(&db, hive_match)
                             .await
                             .expect("couldn't insert match outcome");
