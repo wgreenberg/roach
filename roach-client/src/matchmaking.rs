@@ -55,7 +55,7 @@ impl MatchmakingClient {
 
     pub async fn play_match(&self, mut engine: Box<dyn UHPCompliant>) {
         let mut uri = Url::join(&self.roach_url, "play").unwrap();
-        uri.set_scheme("ws").expect("couldn't set scheme");
+        uri.set_scheme("wss").expect("couldn't set scheme");
         println!("beginning game {}", &uri);
         let req = Builder::new()
             .uri(uri.into_string())
