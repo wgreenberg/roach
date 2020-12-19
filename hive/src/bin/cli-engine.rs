@@ -9,7 +9,7 @@ fn main() {
         .about("UHP compliant hive engine w/ AI")
         .arg(Arg::with_name("num iterations")
             .short("n")
-            .long("n-iterations")
+            .long("num-iterations")
             .takes_value(true)
             .help("Number of iterations for the Monte Carlo tree search"))
         .arg(Arg::with_name("max depth")
@@ -19,13 +19,14 @@ fn main() {
             .help("Maximum depth that MCTS should explore a game tree"))
         .get_matches();
 
-    let max_depth: Option<usize> = opts.value_of("max depth").map(|m| m.parse().unwrap());
-    let n_iterations: Option<usize> = opts.value_of("n iterations").map(|m| m.parse().unwrap());
-    let mcts_opts = MCTSOptions {
-        max_depth: max_depth.unwrap_or_default(),
-        n_iterations: n_iterations.unwrap_or_default(),
-        exploration_coefficient: Default::default(),
-    };
+    let mut mcts_opts: MCTSOptions = Default::default();
+    if let Some(depth) = opts.value_of("max depth") {
+        mcts_opts.max_depth = depth.parse().unwrap();
+    }
+    if let Some(iter) = opts.value_of("num iterations") {
+        mcts_opts.n_iterations = iter.parse().unwrap();
+    }
+    dbg!(&mcts_opts);
     let mut engine = Engine::new();
     engine.options.white_ai_options = AIOptions::MonteCarloTreeSearch(mcts_opts);
     engine.options.black_ai_options = AIOptions::MonteCarloTreeSearch(mcts_opts);
