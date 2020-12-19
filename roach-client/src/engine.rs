@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use hive::engine::Engine;
 use crate::process;
 
-pub fn get_engine(ai_path: String, engine_type: EngineType) -> Box<dyn UHPCompliant> {
+pub fn get_engine(ai_path: String, args: Vec<String>, engine_type: EngineType) -> Box<dyn UHPCompliant> {
     match engine_type {
-        EngineType::UHP => Box::new(UHPEngine::new(ai_path)),
-        EngineType::Simple => Box::new(SimpleEngine::new(ai_path)),
+        EngineType::UHP => Box::new(UHPEngine::new(ai_path, args)),
+        EngineType::Simple => Box::new(SimpleEngine::new(ai_path, args)),
     }
 }
 
@@ -25,9 +25,9 @@ pub struct SimpleEngine {
 }
 
 impl SimpleEngine {
-    pub fn new(ai_path: String) -> Self {
+    pub fn new(ai_path: String, args: Vec<String>) -> Self {
         let real_engine = Engine::new();
-        let process = process::Process::new(&ai_path);
+        let process = process::Process::new(ai_path, args);
         SimpleEngine { process, real_engine }
     }
 }
@@ -53,8 +53,8 @@ pub struct UHPEngine {
 }
 
 impl UHPEngine {
-    fn new(ai_path: String) -> Self {
-        let process = process::Process::new(&ai_path);
+    fn new(ai_path: String, args: Vec<String>) -> Self {
+        let process = process::Process::new(ai_path, args);
         UHPEngine { process }
     }
 }

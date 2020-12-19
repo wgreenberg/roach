@@ -26,6 +26,11 @@ async fn main() {
             .possible_values(&["uhp", "simple"])
             .value_name("ENGINE_TYPE")
             .default_value("uhp"))
+        .arg(Arg::with_name("bin-args")
+            .short("a")
+            .long("bin-args")
+            .value_name("BIN ARGS")
+            .help("Arguments to pass to the AI binary"))
         .subcommand(SubCommand::with_name("engine")
             .about("run a local UHP compliant engine"))
         .subcommand(SubCommand::with_name("matchmaking")
@@ -46,13 +51,16 @@ async fn main() {
         .get_matches();
 
     let ai_path: String = opts.value_of("bin").unwrap().into();
+    let ai_args: Vec<String> = opts.value_of("bin-args")
+        .map(|argstring| argstring.split_whitespace().map(|s| s.to_string()).collect())
+        .unwrap_or(vec![]);
     let engine_type = match opts.value_of("engine type").unwrap() {
         "uhp" => EngineType::UHP,
         "simple" => EngineType::Simple,
         t => panic!("unrecognized engine type {}", t),
     };
     match opts.subcommand_name() {
-        Some("engine") => engine(ai_path, engine_type).await,
+        Some("engine") => engine(ai_path, ai_args, engine_type).await,
         Some("matchmaking") => {
             let matchmaking_opts = opts.subcommand_matches("matchmaking").unwrap();
             let player_token = matchmaking_opts.value_of("player token")
@@ -62,14 +70,14 @@ async fn main() {
             let roach_server = matchmaking_opts.value_of("roach server")
                 .unwrap_or("localhost:8000")
                 .to_string();
-            matchmaking(ai_path, engine_type, roach_server, player_token).await
+            matchmaking(ai_path, ai_args, engine_type, roach_server, player_token).await
         },
         _ => panic!("please specify a valid subcommand"),
     }
 }
 
-async fn engine(ai_path: String, engine_type: EngineType) {
-    let mut engine = get_engine(ai_path, engine_type);
+async fn engine(ai_path: String, ai_args: Vec<String>, engine_type: EngineType) {
+    let mut engine = get_engine(ai_path, ai_args, engine_type);
     loop {
         let mut input = String::new();
         match stdin().read_line(&mut input) {
@@ -80,8 +88,8 @@ async fn engine(ai_path: String, engine_type: EngineType) {
     }
 }
 
-async fn matchmaking(ai_path: String, engine_type: EngineType, roach_server: String, player_token: String) {
-    let engine = get_engine(ai_path, engine_type);
+async fn matchmaking(ai_path: String, ai_args: Vec<String>, engine_type: EngineType, roach_server: String, player_token: String) {
+    let engine = get_engine(ai_path, ai_args, engine_type);
     let client = MatchmakingClient::new(roach_server, player_token);
     let res = client.enter_matchmaking().await.expect("couldn't enter matchmaking");
     client.wait_for_match().await.expect("couldn't poll for match");

@@ -15,9 +15,9 @@ pub type EngineResult<T> = Result<T, Error>;
 
 #[derive(Copy, Clone)]
 pub struct EngineOptions {
-    first_player: Color,
-    white_ai_options: AIOptions,
-    black_ai_options: AIOptions,
+    pub first_player: Color,
+    pub white_ai_options: AIOptions,
+    pub black_ai_options: AIOptions,
 }
 
 impl Default for EngineOptions {
@@ -32,7 +32,7 @@ impl Default for EngineOptions {
 
 pub struct Engine {
     pub game: Option<GameState>,
-    options: EngineOptions,
+    pub options: EngineOptions,
 }
 
 #[derive(PartialEq, Debug)]

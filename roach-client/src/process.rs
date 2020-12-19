@@ -8,8 +8,9 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn new(cmd_str: &str) -> Process {
+    pub fn new(cmd_str: String, args: Vec<String>) -> Process {
         let mut cmd = Command::new(cmd_str);
+        cmd.args(args);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
         let mut child = cmd.spawn().expect("failed to spawn command");

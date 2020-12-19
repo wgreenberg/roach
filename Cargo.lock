@@ -729,6 +729,7 @@ name = "hive"
 version = "0.1.0"
 dependencies = [
  "ai",
+ "clap",
  "criterion",
  "rand 0.7.3",
 ]
