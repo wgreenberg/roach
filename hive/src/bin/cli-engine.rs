@@ -3,7 +3,6 @@ use clap::{Arg, App};
 use hive::engine::Engine;
 use hive::ai::AIOptions;
 use ai::mcts::MCTSOptions;
-use hive::engine::EngineOptions;
 
 fn main() {
     let opts = App::new("cli-engine")
@@ -11,10 +10,12 @@ fn main() {
         .arg(Arg::with_name("num iterations")
             .short("n")
             .long("n-iterations")
+            .takes_value(true)
             .help("Number of iterations for the Monte Carlo tree search"))
         .arg(Arg::with_name("max depth")
             .short("d")
             .long("max-depth")
+            .takes_value(true)
             .help("Maximum depth that MCTS should explore a game tree"))
         .get_matches();
 

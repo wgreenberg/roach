@@ -1,4 +1,4 @@
-use clap::{Arg, App, SubCommand, AppSettings};
+use clap::{Arg, App, AppSettings};
 use std::env;
 use std::io::stdin;
 
@@ -26,53 +26,54 @@ async fn main() {
             .possible_values(&["uhp", "simple"])
             .value_name("ENGINE_TYPE")
             .default_value("uhp"))
+        .arg(Arg::with_name("roach server")
+            .short("s")
+            .long("server")
+            .takes_value(true)
+            .help("domain of the roach server to play against")
+            .default_value("https://roach.rodeo")
+            .value_name("SERVER"))
+        .arg(Arg::with_name("player token")
+            .short("t")
+            .long("token")
+            .takes_value(true)
+            .help("AI player API token")
+            .value_name("TOKEN"))
+        .arg(Arg::with_name("mode")
+            .short("m")
+            .long("mode")
+            .takes_value(true)
+            .possible_values(&["matchmaking", "engine"])
+            .required(true)
+            .value_name("ENGINE_TYPE")
+            .help("Whether to run the client in Engine or Matchmaking mode"))
         .arg(Arg::with_name("bin-args")
-            .short("a")
-            .long("bin-args")
-            .value_name("BIN ARGS")
+            .multiple(true)
+            .last(true)
             .help("Arguments to pass to the AI binary"))
-        .subcommand(SubCommand::with_name("engine")
-            .about("run a local UHP compliant engine"))
-        .subcommand(SubCommand::with_name("matchmaking")
-            .about("run a local UHP compliant engine")
-                .arg(Arg::with_name("roach server")
-                    .short("s")
-                    .long("server")
-                    .takes_value(true)
-                    .help("domain of the roach server to play against")
-                    .value_name("SERVER"))
-                .arg(Arg::with_name("player token")
-                    .short("t")
-                    .long("token")
-                    .takes_value(true)
-                    .help("AI player API token")
-                    .value_name("TOKEN")))
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .setting(AppSettings::TrailingVarArg)
         .get_matches();
 
     let ai_path: String = opts.value_of("bin").unwrap().into();
-    let ai_args: Vec<String> = opts.value_of("bin-args")
-        .map(|argstring| argstring.split_whitespace().map(|s| s.to_string()).collect())
+    let ai_args: Vec<String> = opts.values_of("bin-args")
+        .map(|vals| vals.map(|s| s.to_string()).collect())
         .unwrap_or(vec![]);
     let engine_type = match opts.value_of("engine type").unwrap() {
         "uhp" => EngineType::UHP,
         "simple" => EngineType::Simple,
         t => panic!("unrecognized engine type {}", t),
     };
-    match opts.subcommand_name() {
+    match opts.value_of("mode") {
         Some("engine") => engine(ai_path, ai_args, engine_type).await,
         Some("matchmaking") => {
-            let matchmaking_opts = opts.subcommand_matches("matchmaking").unwrap();
-            let player_token = matchmaking_opts.value_of("player token")
+            let player_token = opts.value_of("player token")
                 .map(String::from)
                 .or(env::var("PLAYER_TOKEN").ok())
                 .expect("please provide a player token (either as an arg or PLAYER_TOKEN env var");
-            let roach_server = matchmaking_opts.value_of("roach server")
-                .unwrap_or("localhost:8000")
-                .to_string();
+            let roach_server = opts.value_of("roach server").unwrap().to_string();
             matchmaking(ai_path, ai_args, engine_type, roach_server, player_token).await
         },
-        _ => panic!("please specify a valid subcommand"),
+        _ => panic!("please specify a valid mode"),
     }
 }
 

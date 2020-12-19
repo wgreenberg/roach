@@ -1,6 +1,6 @@
 #!/bin/bash
-set -x
+set -ex
 
-while 1; do
-    roach-client -b cli-engine -a "-n \"$N_ITERATIONS\" -d \"$MAX_DEPTH\"" matchmaking -s https://roach.rodeo -t "$API_TOKEN"
+while true; do
+    roach-client -b cli-engine -m matchmaking -s https://roach.rodeo -t "$API_TOKEN" -- -n "$N_ITERATIONS" -d "$MAX_DEPTH"
 done
