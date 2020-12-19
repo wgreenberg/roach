@@ -3,6 +3,7 @@ create table matches (
     white_player_id integer not null references players(id),
     black_player_id integer not null references players(id),
     game_type text not null,
+    time_limit_s integer not null,
     winner_id integer references players(id),
     loser_id integer references players(id),
     is_draw boolean not null,

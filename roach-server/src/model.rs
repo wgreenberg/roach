@@ -7,6 +7,7 @@ use diesel::prelude::*;
 use hive::game_state::{GameStatus, Color};
 use hive::parser;
 use std::convert::From;
+use std::time::Duration;
 use chrono::prelude::*;
 
 #[derive(Debug, Insertable)]
@@ -15,6 +16,7 @@ pub struct MatchRowInsertable {
     pub white_player_id: i32,
     pub black_player_id: i32,
     pub game_type: String,
+    pub player_time_limit_s: u64,
     pub winner_id: Option<i32>,
     pub loser_id: Option<i32>,
     pub is_draw: bool,
@@ -31,6 +33,7 @@ pub struct MatchRow {
     pub white_player_id: i32,
     pub black_player_id: i32,
     pub game_type: String,
+    pub player_time_limit_s: u64,
     pub winner_id: Option<i32>,
     pub loser_id: Option<i32>,
     pub is_draw: bool,
@@ -68,7 +71,14 @@ impl MatchRow {
             time_started: self.time_started,
             time_finished: self.time_finished,
         };
-        Ok(HiveMatch { id: Some(self.id), white, black, game_type, outcome: Some(outcome) })
+        Ok(HiveMatch {
+            id: Some(self.id),
+            white,
+            black,
+            game_type,
+            player_time_limit: Duration::from_secs(self.player_time_limit_s),
+            outcome: Some(outcome),
+        })
     }
 }
 

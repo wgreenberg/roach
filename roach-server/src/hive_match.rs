@@ -5,6 +5,8 @@ use crate::model::MatchRowInsertable;
 use hive::game_state::{GameStatus, GameType, Color, GameState, TurnError};
 use hive::parser::{parse_move_string, parse_game_string};
 use hive::error::Error;
+use tokio::time::timeout;
+use std::time::{Instant, Duration};
 use std::convert::From;
 use chrono::prelude::*;
 
@@ -21,6 +23,7 @@ pub struct HiveMatch {
     pub id: Option<i32>,
     pub black: Player,
     pub white: Player,
+    pub player_time_limit: Duration,
     #[serde(serialize_with = "serialize_game_type")]
     pub game_type: GameType,
     pub outcome: Option<MatchOutcome>,
@@ -87,6 +90,7 @@ impl HiveMatch {
             black: p1,
             white: p2,
             game_type,
+            player_time_limit: 60 * 15,
             outcome: None,
         }
     }
@@ -109,7 +113,7 @@ impl HiveMatch {
             winner_id,
             loser_id,
             is_draw,
-            is_fault: outcome.is_fault, 
+            is_fault: outcome.is_fault,
             time_started: outcome.time_started,
             time_finished: outcome.time_finished,
             game_string: outcome.game_string.clone(),
@@ -123,9 +127,13 @@ impl HiveMatch {
 
     pub fn create_session<T>(&self, b_client: T, w_client: T) -> HiveSession<T> where T: Client {
         let first_player = Color::Black; // TODO randomize this
+        let now = Instant::now();
+        let player_time_limit = Duration::from_secs(self.player_time_limit);
         HiveSession {
             b_client,
             w_client,
+            w_time_limit: now + player_time_limit,
+            b_time_limit: now + player_time_limit,
             game: GameState::new_with_type(first_player, self.game_type),
         }
     }
@@ -152,6 +160,8 @@ impl HiveMatch {
 pub struct HiveSession<T> where T: Client {
     w_client: T,
     b_client: T,
+    w_time_limit: Instant,
+    b_time_limit: Instant,
     game: GameState,
 }
 
@@ -287,6 +297,8 @@ mod tests {
                 Ok("Base;NotStarted;Black[1]\nok".into()),
             ]),
             game: GameState::new(Color::Black),
+            w_time_limit: Instant::now() + Duration::from_secs(100),
+            b_time_limit: Instant::now() + Duration::from_secs(100),
         };
         assert_eq!(session.initialize().await, Ok(()));
         assert_eq!(session.b_client.requests, vec!["newgame Base;NotStarted;Black[1]"]);
@@ -300,8 +312,14 @@ mod tests {
                 Ok("Base;NotStarted;Black[1]\nok".into()),
             ]),
             game: GameState::new(Color::Black),
+            w_time_limit: Instant::now() + Duration::from_secs(100),
+            b_time_limit: Instant::now() + Duration::from_secs(100),
         };
         assert_eq!(session.initialize().await.is_err(), true);
+    }
+
+    #[tokio::test]
+    async fn test_player_timeout() {
     }
 
     #[tokio::test]
@@ -315,6 +333,8 @@ mod tests {
                 Ok("Base;InProgress;White[1];bS1\nok".into()),
             ]),
             game: GameState::new(Color::Black),
+            w_time_limit: Instant::now() + Duration::from_secs(100),
+            b_time_limit: Instant::now() + Duration::from_secs(100),
         };
         assert_eq!(session.play_turn().await, Ok(()));
         assert_eq!(session.b_client.requests, vec!["bestmove", "play bS1"]);
@@ -329,6 +349,8 @@ mod tests {
                 Ok("Base;InProgress;White[1];bA1\nok".into()),
             ]),
             game: GameState::new(Color::Black),
+            w_time_limit: Instant::now() + Duration::from_secs(100),
+            b_time_limit: Instant::now() + Duration::from_secs(100),
         };
         assert_eq!(session.play_turn().await.is_err(), true);
         assert_eq!(session.b_client.requests, vec!["bestmove"]);
