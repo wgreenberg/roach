@@ -26,10 +26,13 @@ fn main() {
     if let Some(iter) = opts.value_of("num iterations") {
         mcts_opts.n_iterations = iter.parse().unwrap();
     }
-    dbg!(&mcts_opts);
+
     let mut engine = Engine::new();
     engine.options.white_ai_options = AIOptions::MonteCarloTreeSearch(mcts_opts);
     engine.options.black_ai_options = AIOptions::MonteCarloTreeSearch(mcts_opts);
+
+    // UHP engines begin by outputting the result of an "info" command
+    println!("{}", engine.handle_command("info"));
 
     loop {
         let mut input = String::new();
