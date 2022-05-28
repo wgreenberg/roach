@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Hex {
-    pub x: i64,
-    pub y: i64,
-    pub z: i64,
+    pub x: i8,
+    pub y: i8,
+    pub z: i8,
 }
 
 pub const ORIGIN: Hex = Hex { x: 0, y: 0, z: 0 };
@@ -14,7 +14,7 @@ pub const ORIGIN: Hex = Hex { x: 0, y: 0, z: 0 };
 //  w |  | e
 // sw  \/ se
 impl Hex {
-    pub fn new(x: i64, y: i64, z: i64) -> Hex {
+    pub fn new(x: i8, y: i8, z: i8) -> Hex {
         assert_eq!(x + y + z, 0);
         Hex { x, y, z }
     }
@@ -27,7 +27,7 @@ impl Hex {
         Hex { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
     }
 
-    pub fn dist(&self, other: &Hex) -> i64 {
+    pub fn dist(&self, other: &Hex) -> i8 {
         let dx = (self.x - other.x).abs();
         let dy = (self.y - other.y).abs();
         let dz = (self.z - other.z).abs();
