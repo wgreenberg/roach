@@ -2,13 +2,16 @@ use crate::piece::{Piece, Bug};
 use crate::piece::Bug::*;
 use crate::hex::{Hex, ORIGIN};
 use self::Color::*;
-use std::collections::HashMap;
+use std::collections::hash_map::{HashMap, DefaultHasher};
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GameState {
     pub unplayed_pieces: Vec<Piece>,
     pub board: HashMap<Hex, Piece>,
     pub stacks: HashMap<Hex, Vec<Piece>>,
+    zobrist_hash: u64,
+    zobrist_history: Vec<u64>,
     pub turns: Vec<Turn>,
     pub current_player: Color,
     pub status: GameStatus,
@@ -34,6 +37,8 @@ impl GameState {
             unplayed_pieces: get_initial_pieces(game_type),
             board: HashMap::new(),
             stacks: HashMap::new(),
+            zobrist_hash: 0,
+            zobrist_history: Vec::new(),
             turns: Vec::new(),
             current_player: first_player,
             status: GameStatus::NotStarted,
@@ -285,6 +290,19 @@ impl GameState {
                 .find_map(|(&hex, stack)| if stack.contains(&piece) { Some(hex) } else { None }))
     }
 
+    fn hash(&self, hex: Hex, piece: &Piece, height: usize) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        piece.bug.hash(&mut hasher);
+        piece.owner.hash(&mut hasher);
+        hex.hash(&mut hasher);
+        height.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn height(&self, hex: Hex) -> usize {
+        self.stacks.get(&hex).map(|stack| stack.len()).unwrap_or(0)
+    }
+
     pub fn submit_turn_unchecked(&mut self, turn: Turn) {
         if self.status == GameStatus::NotStarted {
             self.status = GameStatus::InProgress;
@@ -293,10 +311,12 @@ impl GameState {
         match turn {
             Turn::Place(piece, hex) => {
                 assert!(self.board.insert(hex, piece).is_none());
+                self.zobrist_hash ^= self.hash(hex, &piece, 0);
                 self.unplayed_pieces.retain(|&p| p != piece);
             },
             Turn::Move(piece, dest) => {
                 let from = self.get_hex_for_piece(&piece).unwrap();
+                self.zobrist_hash ^= self.hash(from, &piece, self.height(from));
                 assert!(self.board.remove(&from).is_some());
                 // if this piece is uncovering something in a stack, move it onto the board
                 if let Some(stack) = self.stacks.get_mut(&from) {
@@ -309,10 +329,12 @@ impl GameState {
                 if let Some(existing) = self.board.insert(dest, piece) {
                     self.stacks.entry(dest).or_insert(Vec::new()).push(existing);
                 }
+                self.zobrist_hash ^= self.hash(dest, &piece, self.height(dest));
             },
             Turn::Pass => {},
         }
         self.turns.push(turn);
+        self.zobrist_history.push(self.zobrist_hash);
 
         // check for win condition
         let mut num_wins = 0;
@@ -327,6 +349,14 @@ impl GameState {
             }
         }
         if num_wins == 2 {
+            self.status = GameStatus::Draw;
+        }
+
+        // check for draw by threefold repetition
+        let end = self.zobrist_history.len();
+        // Only check positions with the same player to move.
+        let start = 1 - end % 2;
+        if self.zobrist_history[start..end].iter().step_by(2).filter(|&&hash| hash == self.zobrist_hash).count() >= 3 {
             self.status = GameStatus::Draw;
         }
     }
@@ -957,5 +987,30 @@ mod test {
         let turn = Turn::Place(black_queen, ORIGIN);
         let result = new_game.submit_turn(turn);
         assert_eq!(result.err(), Some(TurnError::InvalidMove));
+    }
+
+    #[test]
+    fn test_threefold_repetition() {
+        let mut game = GameState::new(White);
+        play_and_verify(&mut game, vec![
+            "wS1",
+            "bS1 -wS1",
+            "wQ1 wS1-",
+            "bQ1 -bS1",
+            "wQ1 wS1/",
+            // Establish starting position.
+            "bB1 -bQ1",
+            "wQ1 wS1-",
+            "bB1 bQ1",
+            "wQ1 wS1/",
+            // Move back to starting position once.
+            "bB1 -bQ1",
+            "wQ1 wS1-",
+            "bB1 bQ1",
+            "wQ1 wS1/",
+            // Move back to starting position for the 3rd time.
+            "bB1 -bQ1",
+        ]);
+        assert_eq!(game.status, GameStatus::Draw);
     }
 }
