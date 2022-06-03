@@ -64,7 +64,7 @@ fn parse_turn(input: &str, board: &HashMap<Hex, Piece>, origin: &mut Option<Hex>
         }
         let piece = parse_piece_string(tokens.next().unwrap()).unwrap();
         let axial_col = tokens.next().unwrap();
-        let axial_row = tokens.next().unwrap().parse::<i64>().unwrap();
+        let axial_row = tokens.next().unwrap().parse::<i8>().unwrap();
         let dest = axial_to_hex(axial_col, axial_row);
         // wherever the first hex is in absolute space, normalize it so everything's centered
         // around (0, 0, 0)
@@ -83,10 +83,10 @@ fn parse_turn(input: &str, board: &HashMap<Hex, Piece>, origin: &mut Option<Hex>
     }
 }
 
-fn axial_to_hex(col: &str, row: i64) -> Hex {
-    let x: i64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(col).unwrap() as i64;
-    let z: i64 = -row;
-    let y: i64 = -x-z;
+fn axial_to_hex(col: &str, row: i8) -> Hex {
+    let x: i8 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(col).unwrap() as i8;
+    let z: i8 = -row;
+    let y: i8 = -x-z;
     Hex::new(x, y, z)
 }
 
